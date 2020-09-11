@@ -1,3 +1,7 @@
+# This script write the distance and consumption matrix .txt file for aggregated customers (clusters).
+# The output file is in the VRP-solver format.
+import itertools as it
+
 
 def find_cluster(Node_Id, Clusters):
     if Node_Id == "D0":
@@ -8,31 +12,36 @@ def find_cluster(Node_Id, Clusters):
             return str(clu.ID)
 
 
-def update_dis_mat(Data, filename):
+def Find_the_intra_cluster_arc(Data, clu1, clu2):
+    if clu1.ID == "D0":
+        end_points1 = ["D0"]
+    else:
+        end_points1 = clu1.HC_sequence[0], clu1.HC_sequence[-1]
 
-    dis_dic = {}
+    if clu2.ID == "D0":
+        end_points2 = ["D0"]
+    else:
+        end_points2 = clu2.HC_sequence[0], clu2.HC_sequence[-1]
 
-    for arc, distance in Data["Full_dis"].items():
+    intra_arc_list = [[(a,b), Data["Full_dis"][a,b]] for a,b in it.product(end_points1,end_points2)]
+    min_arc, min_dis = min (intra_arc_list, key=lambda x:x[1])
 
-        intra_arc = (find_cluster(arc[0], Data["Clusters"]),find_cluster(arc[1], Data["Clusters"]))
-        if intra_arc in dis_dic.keys():
-            dis_dic[intra_arc].append((arc,distance))
-        else:
-            dis_dic[intra_arc] = [(arc,distance)]
+    return min_arc, min_dis
 
-    file = open("%s_agg.txt" % filename, "w+")
-    for key, val in dis_dic.items():
 
-        min_arc, min_dis = min(val, key=lambda x: x[1])
-        dis_dic[key] = [min_arc, min_dis]
-        key = list(key)
-        for a, b in [key, key[::-1]]:
-            file.write("Link\n%s %s \n" % (a, b))
-            file.write("1\n0 \u0009"+ str(Data["depot"].TW[1]) +"\u0009 0\u0009  %s\n" % (min_dis * 1000))
-            file.write("1\n0 \u0009"+ str(Data["depot"].TW[1]) +"\u0009 0\u0009  %s\n" % (Data["Full_consump"][min_arc] * 1000))
+def update_dis_mat(Data, CWD, filename):
+    dis_mat_path = CWD.replace("solver", "route") + f"/aggregated_data/distance_matrix/agg_{filename}"
+    file = open(dis_mat_path, "w+")
+    Clusters_ID = list(Data["Clusters"].values()) + [Data["depot"]]
+    for clu1, clu2 in it.combinations(Clusters_ID, 2):
+        for a, b in [(clu1, clu2), (clu2, clu1)]:
+            min_arc, min_dis = Find_the_intra_cluster_arc(Data, a, b)
+            # print(a.ID,b.ID,min_dis)
+            file.write("Link\n%s %s \n" % (a.ID, b.ID))
+            file.write("1\n0 \u0009" + str(Data["depot"].TW[1]) + "\u0009 0\u0009  %s\n" % (int(min_dis * 1000)))
+            file.write("1\n0 \u0009" + str(Data["depot"].TW[1]) + "\u0009 0\u0009  %s\n" % (
+                int(Data["Full_consump"][min_arc] * 1000)))
 
     file.close()
 
-    return "%s_agg" % filename
-
-
+    return dis_mat_path

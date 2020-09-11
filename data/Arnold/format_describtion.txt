@@ -1,0 +1,8 @@
+Name
+Type (all instances are capacitated VRPs)
+Number of nodes (customers + depot)
+Edge type (all instances are Euclidean)
+Capacity limit of each vehicle
+Coordinates of depot (first entry)
+Coordinates of customers (remaining entries)
+Demand of all nodes (demand values are between 1 and 3)
