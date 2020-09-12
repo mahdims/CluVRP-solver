@@ -169,3 +169,24 @@ def Honeycomb_Clustering(clean_data):
     clean_data["Clusters"] = Redefined_clusters
 
     return clean_data
+
+
+'''
+def K_means_Clustering(clean_data):
+    customers_x = clean_data["Cx"]
+    customers_y = clean_data["Cy"]
+    # create kmeans object
+    N_of_clusters = 10
+    kmeans = KMeans(n_clusters=N_of_clusters)
+    # fit kmeans object to data
+    kmeans.fit(zip(customers_x.values(),customers_y.values()))
+    # save new clusters for chart
+    y_km = kmeans.fit_predict(zip(customers_x.values(),customers_y.values()))
+
+    for cl in range(N_of_clusters):
+        Clu = 0
+        Clu.K_mean_center =  kmeans.cluster_centers_[cl]
+        clean_data["Clusters"].append(Clu)
+
+    return clean_data
+'''

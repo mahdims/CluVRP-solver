@@ -4,7 +4,7 @@ import sys
 import copy
 from TSP_Solver import TSP_model
 from read import Customer
-from TSPTW_Solver import TSPTW_model
+#from TSPTW_Solver import TSPTW_model
 
 
 # How to find the actual sequence fo the nodes after knowing the cluster ones?

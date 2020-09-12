@@ -9,8 +9,27 @@ def convert_the_coordinates(x, y, x_origin, y_origin):
     return C_coord
 
 
+def XY_range(customers):
+    max_x = customers[1].coord[0]
+    min_x = customers[1].coord[0]
+    max_y = customers[1].coord[1]
+    min_y = customers[1].coord[1]
+    for cus in customers.values():
+        if cus.coord[0] < min_x:
+            min_x = cus.coord[0]
+        elif cus.coord[0] > max_x:
+            max_x = cus.coord[0]
+
+        if cus.coord[1] < min_y:
+            min_y = cus.coord[1]
+        elif cus.coord[0] > max_y:
+            max_y = cus.coord[1]
+
+    return (min_x, max_x), (min_y, max_y)
+
+
 class Customer:
-    def __init__(self, ID, coord, d, TW, ST):
+    def __init__(self, ID, coord, d, TW=[0,0], ST=0):
         self.ID = ID
         self.coord = coord
         self.demand = d
@@ -22,36 +41,21 @@ def read_the_data(Path_2_file, path_2_dis_mat = None):
     np.random.seed(0)
     f = open(Path_2_file, "r")
     lines = list(f)
-    Q = int(lines[-3].split("/")[1])
-    C = int(lines[-2].split("/")[1])
-    R = int(lines[-1].split("/")[1])
+    N = int(lines[3].split(":")[1])
+    Cap = int(lines[5].split(":")[1])
     f.close()
-    data = pd.read_csv(Path_2_file, sep="\t", skipfooter=4, engine='python')
-    data.columns = ["ID", "Type",	"x",	"y",	"Demand",	"Ready",	"Due",	"Service"]
     clean_data = {}
-    stations_coord = {}
-    customers_coord = {}
+    customers_coord = lines[7: 7+N]
+    customers_demand = lines[8+N:8+2*N]
+    depot = lines[9 + 2*N : 11 +2*N]
     customers = {}
-    counter = 1
-    max_x = max(data["x"])
-    min_x = min(data["x"])
-    max_y = max(data["y"])
-    min_y = min(data["y"])
-    max_x, max_y = convert_the_coordinates(max_x, max_y, min_x, min_y)
-    for inx, s in enumerate(data["Type"]):
-        # Convert to cartesian coordinates
-        coord = convert_the_coordinates(data["x"][inx], data["y"][inx], min_x, min_y)
-        if "d" in s:
-            depot = Customer("D0", coord, data["Demand"][inx],
-                                         (data["Ready"][inx], data["Due"][inx]), data["Service"][inx])
-        elif "f" in s:
-            stations_coord[inx] = coord
-        else:
-            customers_coord[inx] = coord
-            cus_ID = data["ID"][inx]
-            customers[cus_ID] = Customer(cus_ID, coord, data["Demand"][inx],
-                     (data["Ready"][inx], data["Due"][inx]),data["Service"][inx])
+    for line_inx, cust in enumerate(customers_coord):
 
+        Id, x, y = [int(a) for a in cust.split("\t")]
+        demand = int(customers_demand[line_inx].split("\t")[1])
+        customers[Id] = Customer(Id, (x,y), demand)
+
+    x_range, y_range = XY_range(customers)
     # read the distance matrix file
     if path_2_dis_mat:
         file = open(path_2_dis_mat)
@@ -64,44 +68,20 @@ def read_the_data(Path_2_file, path_2_dis_mat = None):
             Full_dis[arc] = int(lines[line_inx + 3].replace("\n", "").split("\t")[3]) / 1000
             Full_consump[arc] = int(lines[line_inx + 5].replace("\n", "").split("\t")[3]) / 1000
 
-    customers_No = len(customers_coord)
-    clean_data["Full_dis"] = Full_dis
-    clean_data["Full_consump"] = Full_consump
+        clean_data["Full_dis"] = Full_dis
+        clean_data["Full_consump"] = Full_consump
+
     clean_data["depot"] = depot
-    clean_data["S_coord"] = stations_coord
-    clean_data["C_coord"] = customers_coord
     clean_data["Customers"] = customers
-    clean_data["N_C"] = customers_No
-    clean_data["Demand"] = data["Demand"]
+    clean_data["N_C"] = N
     clean_data["Clusters"] = {}
-    clean_data["Q"] = Q
-    clean_data["C"] = C
-    clean_data["R"] = R
-    clean_data["Axu_depot"] = max(customers_coord.keys()) + 1
-    clean_data["X_range"] = (min_x, max_x)
-    clean_data["Y_range"] = (min_y, max_y)
-    # erase this after test
-    # clean_data["depot"].TW = (0, 23000)
-    return clean_data
-
-
-
-'''
-def K_means_Clustering(clean_data):
-    customers_x = clean_data["Cx"]
-    customers_y = clean_data["Cy"]
-    # create kmeans object
-    N_of_clusters = 10
-    kmeans = KMeans(n_clusters=N_of_clusters)
-    # fit kmeans object to data
-    kmeans.fit(zip(customers_x.values(),customers_y.values()))
-    # save new clusters for chart
-    y_km = kmeans.fit_predict(zip(customers_x.values(),customers_y.values()))
-
-    for cl in range(N_of_clusters):
-        Clu = 0
-        Clu.K_mean_center =  kmeans.cluster_centers_[cl]
-        clean_data["Clusters"].append(Clu)
+    clean_data["C"] = Cap
+    clean_data["Axu_depot"] = N + 1
+    clean_data["X_range"] = x_range
+    clean_data["Y_range"] = y_range
 
     return clean_data
-'''
+
+
+
+

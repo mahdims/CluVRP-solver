@@ -5,7 +5,7 @@ import time
 import getopt
 import matplotlib.pyplot as plt
 from read import read_the_data
-from Honeycomb_Clustering import Honeycomb_Clustering
+from Clustering import Honeycomb_Clustering
 from Agg_Dis_Matrix import update_dis_mat
 from Write_the_aggregated_file import Write_the_aggregated_file
 from Dis_aggregation import Dis_aggregation
@@ -34,15 +34,15 @@ def save_the_customers_sequence(CWD,file_name, Real_tours,Total_Cost,Run_time ):
     midoutput.close()
 
 
-# Problem specification
-def run_aggregation_disaggregation(arg):
-    file_name = "kita_6.txt"
+def get_files_name(arg):
+    # This function will get the arg and return the path to instance files and distance matrix if specified
+    file_name = "Uchoa/X-n308-k13.vrp"
     Dis_mat_name = "vrp_solver_matrix.txt"
     TW_indicator = 0
     CWD = os.getcwd()
 
     try:
-        opts, args = getopt.getopt(arg, "i:m:", ["Input=", "DistanceMatrix="])
+        opts, args = getopt.getopt(arg, "i:m", ["Input=", "DistanceMatrix="])
         for opt, arg in opts:
             if opt in ("-i", "--Input"):
                 file_name = arg
@@ -54,23 +54,27 @@ def run_aggregation_disaggregation(arg):
 
     if not len(opts):
         print("No input file is given by command line. \n")
-    if "e" in file_name:
-        TW_indicator = 1
 
     print("We are solving %s" % file_name)
-    print("The distance matrix is %s" % Dis_mat_name)
+    # print("The distance matrix is %s" % Dis_mat_name)
 
-    path2file = CWD.replace("solver", "route") + "/input_data/instances/"
-    path2matrix = CWD.replace("solver", "route") + "/output_data/"
+    path_2_instance = CWD.replace("projection", "data") + "/" + file_name
+    # path_2_dis_mat = CWD.replace("projection", "data") + "/dis_matrix/" + Dis_mat_name
+    return path_2_instance
 
-    path_2_instance = path2file + file_name
-    path_2_dis_mat = path2matrix + Dis_mat_name
 
+def run_aggregation_disaggregation(arg):
+
+    path_2_instance = get_files_name(arg)
     Timer_start = time.time()
     # read the data from  the text file
     Data = read_the_data(path_2_instance)
     # Implement the honeycomb clustering
     Data = Honeycomb_Clustering(Data)
+    # Create the aggregation scheme
+    agg_scheme = AggregationScheme()
+    # Aggregation
+    Data = Aggregation(agg_scheme, )
     # compute and write the aggregated distance/consumption file for VRP solver
     path_2_dis_mat = update_dis_mat(Data, CWD, Dis_mat_name)
     # write the aggregated input file for VRP solver
