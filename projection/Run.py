@@ -3,13 +3,15 @@ import os
 import sys
 import time
 import getopt
+import math
 import matplotlib.pyplot as plt
+import itertools as it
 from read import read_the_data
 from Clustering import Honeycomb_Clustering
-from Agg_Dis_Matrix import update_dis_mat
-from Write_the_aggregated_file import Write_the_aggregated_file
+from Write_files import Write_AggInstance, Write_AggDis_mat
 from Dis_aggregation import Dis_aggregation
 from Plots import plot_out
+from Aggregation import aggregationScheme, aggregation
 
 # current directory path
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -62,23 +64,40 @@ def get_files_name(arg):
     # path_2_dis_mat = CWD.replace("projection", "data") + "/dis_matrix/" + Dis_mat_name
     return path_2_instance
 
+def euclidean_dis(A, B):
+    return math.sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
+
+
+def build_distance_matrix(depot, customers):
+    distance = {}
+    for cust1, cust2 in it.combinations(customers.values(), 2):
+        distance[cust1.ID, cust2.ID] = euclidean_dis(cust1.coord, cust2.coord)
+        distance[cust2.ID, cust1.ID] = distance[cust1.ID, cust2.ID]
+    for a in customers.values():
+        distance[("D0", a.ID)] = euclidean_dis(depot.coord, a.coord)
+        distance[(a.ID, "D1")] = distance[("D0", a.ID)]
+    return distance
+
 
 def run_aggregation_disaggregation(arg):
-
+    CWD = os.getcwd()
     path_2_instance = get_files_name(arg)
     Timer_start = time.time()
     # read the data from  the text file
     Data = read_the_data(path_2_instance)
+    # Create the full distance matrix
+    Data["Full_dis"] = build_distance_matrix(Data["depot"], Data["Customers"])
     # Implement the honeycomb clustering
     Data = Honeycomb_Clustering(Data)
     # Create the aggregation scheme
-    agg_scheme = AggregationScheme()
+    agg_scheme = aggregationScheme(ref="Centroid", cscost="SHC", cstime="SHC", inter="Nearest",
+                                   disAgg="Sequential", entry_exit="SHPs")
     # Aggregation
-    Data = Aggregation(agg_scheme, )
+    Data, clu_dis = aggregation(Data, agg_scheme)
     # compute and write the aggregated distance/consumption file for VRP solver
-    path_2_dis_mat = update_dis_mat(Data, CWD, Dis_mat_name)
+    path_2_dis_mat = Write_AggDis_mat(Data, path_2_instance, clu_dis)
     # write the aggregated input file for VRP solver
-    path_2_instance = Write_the_aggregated_file(Data, CWD, file_name)
+    path_2_instance = Write_AggInstance(path_2_instance, Data)
 
     # Run the VRP solver
     path_2_VRP_solver = CWD.replace("solver", "vrp_solver")

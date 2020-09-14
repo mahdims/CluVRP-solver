@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 
 
 def convert_the_coordinates(x, y, x_origin, y_origin):
@@ -48,6 +47,8 @@ def read_the_data(Path_2_file, path_2_dis_mat = None):
     customers_coord = lines[7: 7+N]
     customers_demand = lines[8+N:8+2*N]
     depot = lines[9 + 2*N : 11 +2*N]
+    depot = [int(depot[i].split("\t")[1]) for i in [0, 1]]
+    depot = Customer("D0", depot, 0)
     customers = {}
     for line_inx, cust in enumerate(customers_coord):
 

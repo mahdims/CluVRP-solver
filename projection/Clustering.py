@@ -10,7 +10,7 @@ def Calculate_time_distance(Data, Cust1, Cust2):
 
     def one_way(cus1, cus2):
         k1 = 1 # benefit from being in the time windows
-        k2 = 2 # lost of time becuse fo waiting
+        k2 = 2 # lost of time because fo waiting
         k3 = 10 # penalty (time value) of not visiting a customer in the time window
         t_start = cus1.TW[0] + cus1.service_time + dis[(cus1.ID, cus2.ID)]
         t_end = cus1.TW[1] + cus1.service_time + dis[(cus1.ID, cus2.ID)]
@@ -42,22 +42,22 @@ def Change_neighbours_names(clusters, Trans_dict):
 
 
 def draw_the_honeycomb(clusters, X_range=(0,120), Y_range= (0,120)):
-    # This function is just For tests
-    # It will draw the honycomb stracture with clusters numbers
+    # This function is just for tests
+    # It will draw the honeycomb stracture with clusters numbers
     fig, ax = plt.subplots(1)
     ax.set_aspect('equal')
     ax.axis([*X_range, *Y_range])
     for key, cluster in clusters.items():
         ax.add_patch(cluster.Drawing())
         cus_coord = np.array([cus.coord for cus in cluster.customers.values()])
-        ax.scatter(cus_coord[:,0], cus_coord[:,1])
+        ax.scatter(cus_coord[:, 0], cus_coord[:, 1])
         ax.text(*cluster.org, s=key, fontsize=12)
     plt.show()
 
 
-def find_neighbors(clean_data, d,new_hex, count, indic, position):
-    X_range = clean_data["X_range"]
-    # number of hexagonal in one column
+def find_neighbors(Data, d,new_hex, count, indic, position):
+    X_range = Data["X_range"]
+    # Number of hexagonal in one column
     Clu_in_col_min = math.ceil((X_range[1] - X_range[0] - d) / (2 * d))
     new_neighbours = []
     # find the Horizontal neighbors
@@ -77,29 +77,29 @@ def find_neighbors(clean_data, d,new_hex, count, indic, position):
         # The horizontal neighbours
         new_neighbours += [count - 1]
         # The vertical neighbours
-        new_neighbours += [count - Clu_in_col_min - 1
-            , count - Clu_in_col_min]
+        new_neighbours += [count - Clu_in_col_min - 1, count - Clu_in_col_min]
 
     for nei in new_neighbours:
-        if nei in clean_data["Clusters"].keys():
-            clean_data["Clusters"][nei].neighbours += [count]
+        if nei in Data["Clusters"].keys():
+            Data["Clusters"][nei].neighbours += [count]
             new_hex.neighbours += [nei]
 
-    return clean_data, new_hex
+    return Data, new_hex
 
 from Hexogonal import Hexo
 
-def Honeycomb_Clustering(clean_data):
-    # Region size (Hexagonal size )
-    # fix coefficient
+def Honeycomb_Clustering(Data):
+    # This function just create the clusters, find which customers are inside the clusters and only
+    # keep the clusters with customers inside
+    # The important factor of Region size (Hexagonal size) is "r"
     TW_indicator = 0
     Co = 0.8660254037844386
     # radius
     r = 200
     d = r * Co
     # maximum y or x in 2_D map
-    X_range = clean_data["X_range"]
-    Y_range = clean_data["X_range"]
+    X_range = Data["X_range"]
+    Y_range = Data["X_range"]
     count = 1
     # Creating the clusters centers
     for inx, x in enumerate(np.arange(X_range[0], X_range[1] + r, 1.5 * r)):
@@ -112,14 +112,14 @@ def Honeycomb_Clustering(clean_data):
             # Defining the clusters object
             new_hex = Hexo((x, y), r)
             # Find and update the cluster neighbors (it is just needed for re-clustering algorithm)
-            # clean_data, new_hex = find_neighbors(clean_data, d, new_hex, count, indic, position)
-            clean_data["Clusters"][count] = new_hex
+            # Data, new_hex = find_neighbors(Data, d, new_hex, count, indic, position)
+            Data["Clusters"][count] = new_hex
             count += 1
             position = "M" # cluster is in the middle rows
 
     # Find which customer is inside which cluster
-    for cus in clean_data["Customers"].values():
-        for Clu in clean_data["Clusters"].values():
+    for cus in Data["Customers"].values():
+        for Clu in Data["Clusters"].values():
             if Clu.Check_if_inside(cus.coord):
                 Clu.add_customer(cus)
                 break
@@ -128,53 +128,39 @@ def Honeycomb_Clustering(clean_data):
     ID_cont = 1
     used_clusters = []
     ID_translation = {}
-    for key, clu in clean_data["Clusters"].items():
-        # Only keep the clusters that have customers inside
+    for key, clu in Data["Clusters"].items():
         if clu.customers:
             # Assign the clusters ID
             clu.ID = "Cu" + str(ID_cont)
             ID_cont += 1
             ID_translation[key] = clu.ID
             # Calculate the Time distance among the customers in a cluster
-            # clu.initial_T_dis_matrix(clean_data)
-            # store the current cluster as a used cluster
+            # clu.initial_T_dis_matrix(Data)
             used_clusters.append((clu.ID, clu))
         else:
             ID_translation[key] = []
 
     used_clusters = dict(used_clusters)
     # Change the neighbours ID
-    used_clusters = Change_neighbours_names(used_clusters,ID_translation)
+    used_clusters = Change_neighbours_names(used_clusters, ID_translation)
     # change the clusters according to the time windows suitabilities
-    # Redefined_clusters = redefine_the_clusters(clean_data, used_clusters)
-    Redefined_clusters = used_clusters
+    # Redefined_clusters = redefine_the_clusters(Data, used_clusters)
     # draw_the_honeycomb(Redefined_clusters, X_range, Y_range)
-
-    # Calculating the cluster's parameters
-    for clu in Redefined_clusters.values():
-        # Calculate the total demand of a cluster
-        clu.demand = sum([cus.demand for cus in clu.customers.values()])
-        # Calculate the clusters centroid
-        clu.Centroid()
+    for clu in used_clusters.values():
         # create the cluster distance matrix (for inside clusters)
-        clu.cluster_dis_matrix(clean_data)
-        # Calculate the Shortest hamiltonian cycle with solving a TSP
-        clu.Hamiltonian_cycle(clean_data, TW_indicator)
-        # compute the time service
-        clu.service_time = int(clu.HC_cost + sum([cus.service_time for cus in clu.customers.values()]))
-        # Calculate the cluster time windows
-        clu.time_window_calc()
+        clu.cluster_dis_matrix(Data)
+        # create the transition set for each cluster
+        clu.Create_transSet(Data["Full_dis"], used_clusters)
 
-    # replace the refined clusters with the initial ones
-    clean_data["Clusters"] = Redefined_clusters
+    Data["Clusters"] = used_clusters
 
-    return clean_data
+    return Data
 
 
 '''
-def K_means_Clustering(clean_data):
-    customers_x = clean_data["Cx"]
-    customers_y = clean_data["Cy"]
+def K_means_Clustering(Data):
+    customers_x = Data["Cx"]
+    customers_y = Data["Cy"]
     # create kmeans object
     N_of_clusters = 10
     kmeans = KMeans(n_clusters=N_of_clusters)
@@ -186,7 +172,7 @@ def K_means_Clustering(clean_data):
     for cl in range(N_of_clusters):
         Clu = 0
         Clu.K_mean_center =  kmeans.cluster_centers_[cl]
-        clean_data["Clusters"].append(Clu)
+        Data["Clusters"].append(Clu)
 
-    return clean_data
+    return Data
 '''

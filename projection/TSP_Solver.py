@@ -5,28 +5,27 @@ import numpy as np
 import sys
 # Callback - use lazy constraints to eliminate sub-tours
 
+
 def subtourelim(model, where):
-  if where == GRB.callback.MIPSOL:
-    selected = []
-    sol={}
-    # make a list of edges selected in the solution
-    for i in Gnodes:
-      for j in Gnodes :
-          if j!=i:
-              sol[i,j] = model.cbGetSolution(model._vars[i,j])
-              if sol[i,j] > 0.5:
-                  selected.append( (i,j) )
-    # find the shortest cycle in the selected edge list
-    tour = subtour(selected)
-    if len(tour) < N:
-      # add a subtour elimination constraint
-      expr = 0
-      for i in range(len(tour)):
-        for j in range(len(tour)):
-            if j != i :
-                expr += model._vars[tour[i], tour[j]]
-          # expr += model._vars[tour[j], tour[i]]
-      model.cbLazy(expr <= len(tour)-1)
+
+    if where == GRB.callback.MIPSOL:
+        selected = []
+        sol = {}
+        # make a list of edges selected in the solution
+        for i, j in model._vars.keys():
+            sol[i,j] = model.cbGetSolution(model._vars[i,j])
+            if sol[i,j] > 0.5:
+                selected.append( (i,j) )
+        # find the shortest cycle in the selected edge list
+        tour = subtour(selected)
+        if len(tour) < N:
+            # add a subtour elimination constraint
+            expr = 0
+            for i in range(len(tour)):
+                for j in range(len(tour)):
+                    if j != i:
+                        expr += model._vars[tour[i], tour[j]]
+            model.cbLazy(expr <= len(tour)-1)
 
 # Given a list of edges, finds the shortest subtour
 def subtour(edges):
@@ -81,11 +80,6 @@ def TSP_model(dis,Nodes):
     global Gnodes, N
     Gnodes=list(Nodes.keys())
     N = len(Gnodes)
-    # Update the distance matrix
-    for n in Gnodes:
-        if n != "D0" and n != "D1":
-            dis[n, "D0"] = dis["D0", n]
-            dis["D1", n] = dis[n, "D1"]
     Big_m =  max(dis.values())
     dis["D0", "D1"] = dis["D1", "D0"] = -1 * Big_m
 
@@ -108,8 +102,8 @@ def TSP_model(dis,Nodes):
     TSP._vars = x
     TSP.update()
     # Add flow balance constraints
-    TSP.addConstrs(quicksum(x[i,j] for i in Gnodes if j!=i)== 1 for j in Gnodes )
-    TSP.addConstrs(quicksum(x[i,j] for j in Gnodes if j!=i) == 1 for i in Gnodes)
+    TSP.addConstrs(quicksum(x[i,j] for i in Gnodes if j != i) == 1 for j in Gnodes)
+    TSP.addConstrs(quicksum(x[i,j] for j in Gnodes if j != i) == 1 for i in Gnodes)
         
     TSP.update()
     # Optimize model
