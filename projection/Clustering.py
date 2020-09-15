@@ -95,7 +95,7 @@ def Honeycomb_Clustering(Data):
     TW_indicator = 0
     Co = 0.8660254037844386
     # radius
-    r = 200
+    r = 130
     d = r * Co
     # maximum y or x in 2_D map
     X_range = Data["X_range"]

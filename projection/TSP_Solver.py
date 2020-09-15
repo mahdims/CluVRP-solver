@@ -76,11 +76,12 @@ def Route_correction(Sequence):
             Sequence = Sequence[inx_s:] + Sequence[:inx_s]
     return Sequence
 
+
 def TSP_model(dis,Nodes):
     global Gnodes, N
     Gnodes=list(Nodes.keys())
     N = len(Gnodes)
-    Big_m =  max(dis.values())
+    Big_m = max(dis.values())
     dis["D0", "D1"] = dis["D1", "D0"] = -1 * Big_m
 
     if N <= 3:

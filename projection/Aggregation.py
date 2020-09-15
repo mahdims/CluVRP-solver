@@ -4,7 +4,12 @@ import copy
 import sys
 import itertools as it
 from math import sqrt
+from read import Customer
 from TSP_Solver import TSP_model
+
+
+def euclidean_dis(A,B):
+    return sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
 
 
 def Centroid(customers):
@@ -64,6 +69,7 @@ def Ref2Ref_inter_cluster(Data):
             ref2 = clu2.reference
 
         clu_dis[clu1.ID, clu2.ID] = sqrt((ref1[0]-ref2[0])**2 + (ref1[1]-ref2[1])**2)
+        clu_dis[clu2.ID, clu1.ID] = clu_dis[clu1.ID, clu2.ID]
     return clu_dis
 
 
@@ -88,8 +94,102 @@ def nearest_inter_cluster(Data):
 
         min_arc, min_dis = min(intra_arc_list, key=lambda x: x[1])
         clu_dis[clu1.ID, clu2.ID] = min_dis
+        clu_dis[clu2.ID, clu1.ID] = clu_dis[clu1.ID, clu2.ID]
 
     return clu_dis
+
+
+def DisAgg_HC(Data, M_path, TW_indicator=0):
+    Aux_depot = Data["Axu_depot"]
+    Depot = Data["depot"]
+    Clusters = Data["Clusters"]
+    Nodes_pool = {}
+    Dis = {}
+    # Build the node pool
+    for inx, clu_ID in enumerate(M_path[:-1]):
+        # The first node should be the depot
+        if clu_ID == "D0":
+            Nodes_pool[clu_ID] = Data["depot"]
+            continue
+        Clu = Clusters[clu_ID]
+        Nodes_pool.update({cus_id: cus for cus_id, cus in Clu.customers.items()})
+    # last customer should be depot as well
+    Nodes_pool["D1"] = Data["depot"]
+    # Build the distance matrix
+    for node1_ID, node2_ID in it.combinations(Nodes_pool.keys(), 2):
+        Dis[node1_ID, node2_ID] = Data["Full_dis"][node1_ID, node2_ID]
+        Dis[node2_ID, node1_ID] = Dis[node1_ID, node2_ID]
+
+    Sequence, Total_Cost = TSP_model(Dis, Nodes=Nodes_pool)
+
+    return Sequence, Total_Cost
+
+
+def DisAgg_Sequential(Data, M_path, TW_indicator=0):
+    Clusters = Data["Clusters"]
+    N = max(M_path)
+    start_time = 0
+    real_path = []
+    Total_time = 0
+    last_node_ID = "D0"
+    for inx, clu_ID in enumerate(M_path[:-1]):
+
+        # The first last node should be the depot
+        if clu_ID == "D0":
+            last_node = copy.copy(Data["depot"])
+            real_path.append(last_node.ID)
+            continue
+
+        Clu = Clusters[clu_ID]
+        Dis = Clu.Dis
+
+        # Next node
+        if M_path[inx + 1] == "D0": # if we are at the last cluster
+            next_node = copy.copy(Data["depot"])
+            next_node.ID = "D1"
+        else: # otherwise (if we are at a middle cluster)
+            next_node = Customer("D1", Clusters[M_path[inx+1]].reference, 0, Data["depot"].TW, 0)
+
+        # update the distance matrix to include the last and next node
+        for n, cus in Clu.customers.items():
+            Dis[last_node.ID, n] = Data["Full_dis"][(last_node_ID, cus.ID)]
+            if M_path[inx + 1] == "D0":
+                Dis[n, next_node.ID] = Data["Full_dis"][("D0", cus.ID)]
+            else:
+                Dis[n, next_node.ID] = euclidean_dis(cus.coord, next_node.coord)
+
+        # solve the TSP  to find the hamiltonian path
+        Nodes = Clu.customers
+        Nodes[next_node.ID] = next_node
+        Nodes[last_node.ID] = last_node
+        if TW_indicator:
+            Sequence, Current_time = TSPTW_model(Dis, Nodes, start_time)
+        else:
+            Sequence, Current_time = TSP_model(Dis, Nodes)
+
+        # Update the total time
+        if M_path[inx + 1] == "D0":
+            pass
+        else:
+            Current_time -= Dis[Sequence[-2], next_node.ID]
+        Total_time += Current_time
+
+        # Update the real (global) route
+        if M_path[inx + 1] == "D0":
+            real_path += Sequence[1:]
+        else:
+            real_path += Sequence[1:-1]
+
+        if len(Sequence) == 0: # Extra check delete !
+            sys.exit("The path became infeasible for cluster %s" %clu_ID)
+        # Update the last node form the hamiltonian path
+        last_node_ID = Sequence[-2]
+        last_node = copy.copy(Data["Customers"][last_node_ID])
+        last_node.ID = "D0"
+        # update the start_time for the next cluster
+        start_time = Current_time - last_node.service_time
+
+    return real_path, Total_time
 
 
 class aggregationScheme:
@@ -131,16 +231,16 @@ class aggregationScheme:
             sys.exit("Invalid inter clusters distance option")
 
         if disAgg == "OneTsp":
-            self.dis_aggregation = None
+            self.dis_aggregation = DisAgg_HC
         elif disAgg == "Sequential":
-            self.dis_aggregation = None
+            self.dis_aggregation = DisAgg_Sequential
         else:
             sys.exit("Invalid disaggregation option")
 
         if entry_exit == "Nearest":
-            self.entry_exit = None
+            self.entry_exit = "Nearest"
         elif entry_exit == "SHPs":
-            self.entry_exit = None
+            self.entry_exit = "SHPs"
         else:
             sys.exit("Invalid entry exit option")
 

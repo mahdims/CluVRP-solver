@@ -1,5 +1,6 @@
 import itertools as it
 
+
 def Write_AggInstance(path2file,Data):
     original_name = path2file.split("/")[-1]
     path2file = path2file.replace(original_name, f"agg_data/Agg_{original_name}")
@@ -41,3 +42,16 @@ def Write_AggDis_mat(Data,path2file, clu_dis):
     file.close()
 
     return dis_mat_path
+
+
+def save_the_customers_sequence(CWD,file_name, Real_tours,Total_Cost,Run_time ):
+    midoutput = open(CWD.replace("solver","route")+f"/output_data/customer_sequence/sequence_{file_name}" ,'w+')
+    midoutput.write("Total Time in seconds: %s \n" %Run_time)
+    for cost , l in Real_tours:
+        str_rout = ""
+        for n in l[:-1]:
+            str_rout += str("%s->" %n)
+        str_rout += "D0"
+        midoutput.write(str(round(cost,3))+": "+ str_rout + "\n")
+    midoutput.write("Total costs: %s" % round(Total_Cost,3))
+    midoutput.close()

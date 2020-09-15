@@ -1,6 +1,17 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-def plot_out(ax , clean_data, Real_tours,Cost,Time):
+
+
+def Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time):
+    fig, ax = plt.subplots(1)
+    # aggregation solution
+    ax.set_title("Aggregation Solution", fontsize=13.0)
+    plot_out(ax, Data, Real_tours, Total_Cost, Run_time)
+    plt.show()
+
+
+def plot_out(ax, clean_data, Real_tours,Cost,Time):
     ax.axis([*clean_data["X_range"], *clean_data["Y_range"]])
     S_coord = np.array(list(clean_data["S_coord"].values()))
     # draw the station points on the plate
