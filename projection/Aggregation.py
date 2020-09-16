@@ -100,8 +100,7 @@ def nearest_inter_cluster(Data):
 
 
 def DisAgg_HC(Data, M_path, TW_indicator=0):
-    Aux_depot = Data["Axu_depot"]
-    Depot = Data["depot"]
+    BigM = 10 * max(Data["Full_dis"].values())
     Clusters = Data["Clusters"]
     Nodes_pool = {}
     Dis = {}
@@ -114,15 +113,15 @@ def DisAgg_HC(Data, M_path, TW_indicator=0):
         Clu = Clusters[clu_ID]
         Nodes_pool.update({cus_id: cus for cus_id, cus in Clu.customers.items()})
     # last customer should be depot as well
-    Nodes_pool["D1"] = Data["depot"]
+    Nodes_pool["D1"] = Data["Aux_depot"]
     # Build the distance matrix
-    for node1_ID, node2_ID in it.combinations(Nodes_pool.keys(), 2):
-        Dis[node1_ID, node2_ID] = Data["Full_dis"][node1_ID, node2_ID]
-        Dis[node2_ID, node1_ID] = Dis[node1_ID, node2_ID]
+    for node1, node2 in it.combinations(Nodes_pool.values(), 2):
+        Dis[node1.ID, node2.ID] = Data["Full_dis"][node1.ID, node2.ID] + BigM * (node1.clu_id != node2.clu_id)
+        Dis[node2.ID, node1.ID] = Dis[node1.ID, node2.ID]
 
     Sequence, Total_Cost = TSP_model(Dis, Nodes=Nodes_pool)
 
-    return Sequence, Total_Cost
+    return Sequence, Total_Cost - BigM * (len(M_path) - 1)
 
 
 def DisAgg_Sequential(Data, M_path, TW_indicator=0):
@@ -159,7 +158,7 @@ def DisAgg_Sequential(Data, M_path, TW_indicator=0):
                 Dis[n, next_node.ID] = euclidean_dis(cus.coord, next_node.coord)
 
         # solve the TSP  to find the hamiltonian path
-        Nodes = Clu.customers
+        Nodes = copy.copy(Clu.customers)
         Nodes[next_node.ID] = next_node
         Nodes[last_node.ID] = last_node
         if TW_indicator:
@@ -199,7 +198,7 @@ class aggregationScheme:
         elif ref == "Gravity":
             self.reference_point = Gravity
         else:
-            sys.exit("Invalid reference point option")
+            sys.exit("Invalid reference point option. \n Options: Centroid , Gravity")
 
         if cscost == "LB":
             self.service_cost = None
@@ -210,7 +209,7 @@ class aggregationScheme:
         elif cscost == "SHC":
             self.service_cost = Hamiltonian_cycle
         else:
-            sys.exit("Invalid cluster service cost option")
+            sys.exit("Invalid cluster service cost option. \n Options: LB, UB, Combine, SHC")
 
         if cstime == "LB":
             self.service_time = None
@@ -221,21 +220,21 @@ class aggregationScheme:
         elif cstime == "SHC":
             self.service_time = Hamiltonian_cycle
         else:
-            sys.exit("Invalid cluster service time option")
+            sys.exit("Invalid cluster service time option. \n Options: LB, UB, Combine, SHC")
 
         if inter == "Nearest":
             self.inter_distance = nearest_inter_cluster
         elif inter == "Ref2Ref":
             self.inter_distance = Ref2Ref_inter_cluster
         else:
-            sys.exit("Invalid inter clusters distance option")
+            sys.exit("Invalid inter clusters distance option. Options: Nearest, Ref2Ref")
 
         if disAgg == "OneTsp":
             self.dis_aggregation = DisAgg_HC
         elif disAgg == "Sequential":
             self.dis_aggregation = DisAgg_Sequential
         else:
-            sys.exit("Invalid disaggregation option")
+            sys.exit("Invalid disaggregation option. \n Options: OneTsp, Sequential")
 
         if entry_exit == "Nearest":
             self.entry_exit = "Nearest"

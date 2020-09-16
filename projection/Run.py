@@ -10,12 +10,12 @@ from Clustering import Honeycomb_Clustering
 from Aggregation import aggregationScheme, aggregation
 from Write_files import Write_AggInstance, Write_AggDis_mat
 from VRP_Exact_Solver import VRP_Model_SC, VRP_Model_2CF
-from Plots import plot_out
+from Plots import Draw_on_a_plane
 
 
 def get_files_name(arg):
     # This function will get the arg and return the path to instance files and distance matrix if specified
-    file_name = "Uchoa/X-n308-k13.vrp"
+    file_name = "Uchoa/X-n895-k37.vrp"
     Dis_mat_name = "vrp_solver_matrix.txt"
     TW_indicator = 0
     CWD = os.getcwd()
@@ -54,6 +54,7 @@ def build_distance_matrix(depot, customers):
     for a in customers.values():
         distance[("D0", a.ID)] = euclidean_dis(depot.coord, a.coord)
         distance[(a.ID, "D1")] = distance[("D0", a.ID)]
+    distance[("D0", "D1")] = distance[("D1", "D0")] = 0
     return distance
 
 
@@ -90,9 +91,11 @@ def run_aggregation_disaggregation(arg):
         Real_tours.append([Cost, Tour])
         Total_Cost += Cost
 
-    Run_time = time.time()-Timer_start
+    Run_time = time.time() - Timer_start
+    print(f"Total cost = {Total_Cost}")
+    print(f"Runtime = {Run_time}")
     # Draw the final tours all together
-    # Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
+    Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
     # save the CUSTOMERS SEQUENCE
     # save_the_customers_sequence(CWD,file_name, Real_tours,Total_Cost,Run_time )
     

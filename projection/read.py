@@ -9,22 +9,22 @@ def convert_the_coordinates(x, y, x_origin, y_origin):
 
 
 def XY_range(customers):
-    max_x = customers[1].coord[0]
-    min_x = customers[1].coord[0]
-    max_y = customers[1].coord[1]
-    min_y = customers[1].coord[1]
+    max_x = customers[2].coord[0]
+    min_x = customers[2].coord[0]
+    max_y = customers[2].coord[1]
+    min_y = customers[2].coord[1]
     for cus in customers.values():
         if cus.coord[0] < min_x:
             min_x = cus.coord[0]
-        elif cus.coord[0] > max_x:
+        if cus.coord[0] > max_x:
             max_x = cus.coord[0]
 
         if cus.coord[1] < min_y:
             min_y = cus.coord[1]
-        elif cus.coord[0] > max_y:
+        if cus.coord[1] > max_y:
             max_y = cus.coord[1]
 
-    return (min_x, max_x), (min_y, max_y)
+    return [min_x, max_x], [min_y, max_y]
 
 
 class Customer:
@@ -34,6 +34,7 @@ class Customer:
         self.demand = d
         self.TW = TW
         self.service_time = ST
+        self.clu_id = 0
 
 
 def read_the_data(Path_2_file, path_2_dis_mat = None):
@@ -44,11 +45,11 @@ def read_the_data(Path_2_file, path_2_dis_mat = None):
     Cap = int(lines[5].split(":")[1])
     f.close()
     clean_data = {}
-    customers_coord = lines[7: 7+N]
-    customers_demand = lines[8+N:8+2*N]
-    depot = lines[9 + 2*N : 11 +2*N]
-    depot = [int(depot[i].split("\t")[1]) for i in [0, 1]]
+    depot = lines[7: 8]
+    depot = [int(a) for a in depot[0].split("\t")[1:]]
     depot = Customer("D0", depot, 0)
+    customers_coord = lines[8: 8+N-1]
+    customers_demand = lines[8+N+1:8+2*N]
     customers = {}
     for line_inx, cust in enumerate(customers_coord):
 
@@ -73,11 +74,10 @@ def read_the_data(Path_2_file, path_2_dis_mat = None):
         clean_data["Full_consump"] = Full_consump
 
     clean_data["depot"] = depot
+    clean_data["Aux_depot"] = Customer("D1", depot.coord, 0)
     clean_data["Customers"] = customers
-    clean_data["N_C"] = N
     clean_data["Clusters"] = {}
     clean_data["C"] = Cap
-    clean_data["Axu_depot"] = N + 1
     clean_data["X_range"] = x_range
     clean_data["Y_range"] = y_range
 

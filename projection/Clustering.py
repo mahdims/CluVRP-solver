@@ -95,7 +95,7 @@ def Honeycomb_Clustering(Data):
     TW_indicator = 0
     Co = 0.8660254037844386
     # radius
-    r = 130
+    r = 80
     d = r * Co
     # maximum y or x in 2_D map
     X_range = Data["X_range"]
@@ -147,6 +147,9 @@ def Honeycomb_Clustering(Data):
     # Redefined_clusters = redefine_the_clusters(Data, used_clusters)
     # draw_the_honeycomb(Redefined_clusters, X_range, Y_range)
     for clu in used_clusters.values():
+        # Assign the cluster name to customers
+        for cus in clu.customers.values():
+            cus.clu_id = clu.ID
         # create the cluster distance matrix (for inside clusters)
         clu.cluster_dis_matrix(Data)
         # create the transition set for each cluster
