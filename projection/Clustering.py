@@ -96,6 +96,10 @@ def Honeycomb_Clustering(Data):
     Co = 0.8660254037844386
     # radius
     r = 80
+    # The cluster demand should be less than 0.3 0.4 0.5 presentage of the vehicle capacity
+    # If the demand variation is low then decrease the cluster size, if the variation is high and there is
+    # some clusters with only one customers and some with a lot more customers in the dense areas.
+    # Then you should assign the far customers to the nearest clusters in the center.
     d = r * Co
     # maximum y or x in 2_D map
     X_range = Data["X_range"]
@@ -130,6 +134,8 @@ def Honeycomb_Clustering(Data):
     ID_translation = {}
     for key, clu in Data["Clusters"].items():
         if clu.customers:
+            print(sum([cus.demand for cus in clu.customers.values()]))
+            # assert sum([cus.demand for cus in clu.customers.values()]) <= Data["C"]
             # Assign the clusters ID
             clu.ID = "Cu" + str(ID_cont)
             ID_cont += 1

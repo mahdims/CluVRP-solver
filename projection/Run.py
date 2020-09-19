@@ -10,12 +10,13 @@ from Clustering import Honeycomb_Clustering
 from Aggregation import aggregationScheme, aggregation
 from Write_files import Write_AggInstance, Write_AggDis_mat
 from VRP_Exact_Solver import VRP_Model_SC, VRP_Model_2CF
+from LNS_Algorithm import LNS
 from Plots import Draw_on_a_plane
 
 
 def get_files_name(arg):
     # This function will get the arg and return the path to instance files and distance matrix if specified
-    file_name = "Uchoa/X-n895-k37.vrp"
+    file_name = "Uchoa/X-n491-k59.vrp"
     Dis_mat_name = "vrp_solver_matrix.txt"
     TW_indicator = 0
     CWD = os.getcwd()
@@ -69,7 +70,7 @@ def run_aggregation_disaggregation(arg):
     # Implement the honeycomb clustering
     Data = Honeycomb_Clustering(Data)
     # Create the aggregation scheme
-    agg_scheme = aggregationScheme(ref="Centroid", cscost="SHC", cstime="SHC", inter="Nearest",
+    agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="SHC", inter="Nearest",
                                    disAgg="OneTsp", entry_exit="SHPs")
     # Aggregation
     Data, clu_dis = aggregation(Data, agg_scheme)
@@ -79,15 +80,14 @@ def run_aggregation_disaggregation(arg):
     path_2_instance = Write_AggInstance(path_2_instance, Data)
 
     # Run the VRP solver
-    objVal, Master_route = VRP_Model_SC(Data, clu_dis)
-    # objVal, Master_route = VRP_Model_2CF(Data, clu_dis)
+    # objVal, Master_route = VRP_Model_SC(Data, clu_dis)
+    objVal, Master_route = LNS(Data, clu_dis)
 
     # Dis-aggregation
     Real_tours = []
     Total_Cost = 0
     for route in Master_route:
         Tour, Cost = agg_scheme.dis_aggregation(Data, route)
-        print(Cost, Tour)
         Real_tours.append([Cost, Tour])
         Total_Cost += Cost
 

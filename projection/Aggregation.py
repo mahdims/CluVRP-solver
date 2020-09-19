@@ -5,7 +5,7 @@ import sys
 import itertools as it
 from math import sqrt
 from read import Customer
-from TSP_Solver import TSP_model
+from TSP_Solver import TSP_model, TSP_concorde
 
 
 def euclidean_dis(A,B):
@@ -29,6 +29,47 @@ def Gravity(customers):
     return reference
 
 
+def LU_service_cost(Data, clu):
+
+    if len(clu.customers) == 1:
+        return list(clu.customers.values())[0].service_time
+    elif len(clu.customers) == 2:
+
+        return clu.Dis[tuple(list(clu.customers.keys()))] +sum([cus.service_time for cus in clu.customers.values()])
+    transSet = []
+    for a in clu.trans_nodes.values():
+        transSet += a
+    transSet = list(set(transSet))
+
+    Hamiltonian_paths = {}
+    for cus1, cus2 in it.combinations(transSet, 2):
+        distance = copy.copy(clu.Dis)
+        # Create the distance matrix
+        for n in set(clu.customers.keys()) - set([cus1, cus2]):
+                distance["D0", n] = distance[cus1, n]
+                distance[n, "D0"] = distance["D0", n]
+                del distance[cus1, n], distance[n, cus1]
+                distance[n, "D1"] = distance[n, cus2]
+                distance["D1", n] = distance[n, "D1"]
+                del distance[n, cus2], distance[cus2, n]
+        for n,m in it.combinations([cus1, cus2, "D0", "D1"],2):
+            try:
+                del distance[n, m], distance[m, n]
+            except KeyError:
+                pass
+        nodeSet = copy.copy(clu.customers)
+        nodeSet["D0"] = nodeSet[cus1]
+        nodeSet["D1"] = nodeSet[cus2]
+        del nodeSet[cus1], nodeSet[cus2]
+        HP, HP_cost = TSP_model(distance, Nodes=nodeSet)
+        HP[0] = cus1
+        HP[-1] = cus2
+        Hamiltonian_paths[(cus1, cus2)] = [HP_cost, HP]
+    MinHp, (Min_cost, Seq) = min(Hamiltonian_paths.items(), key=lambda x: x[1][0])
+
+    return int(Min_cost + sum([cus.service_time for cus in clu.customers.values()]))
+
+
 def Hamiltonian_cycle(Data, clu, TW_indicator=0):
     # note the hamiltonian cycle starts from the depot and end at the depot therefore we needs to add distances
     # Add the depot D0 and D1 to the distance matrix
@@ -41,12 +82,13 @@ def Hamiltonian_cycle(Data, clu, TW_indicator=0):
         # clu.HC_sequence, clu.HC_cost = TSPTW_model(Dis, Nodes=TSP_Nodes, start_time=0)
         pass
     else:
-        clu.HC_sequence, clu.HC_cost = TSP_model(clu.Dis, Nodes=TSP_Nodes)
+        # clu.HC_sequence, clu.HC_cost = TSP_model(clu.Dis, Nodes=TSP_Nodes)
+        clu.HC_sequence, clu.HC_cost = TSP_concorde(clu.Dis, TSP_Nodes)
 
     if not clu.HC_sequence:
         sys.exit("Cluster %s is infeasible" % clu.ID)
     else:
-        print("We find the Hamiltonian cycle for cluster %s in %s sec" % (clu.ID, round(time.time()-time_start,3)))
+        # print("We find the Hamiltonian cycle for cluster %s in %s sec" % (clu.ID, round(time.time()-time_start,3)))
         clu.HC_sequence.remove("D0")
         clu.HC_sequence.remove("D1")
         clu.HC_cost = clu.HC_cost - clu.Dis[("D0", clu.HC_sequence[0])] - clu.Dis[(clu.HC_sequence[-1], "D1")]
@@ -119,8 +161,8 @@ def DisAgg_HC(Data, M_path, TW_indicator=0):
         Dis[node1.ID, node2.ID] = Data["Full_dis"][node1.ID, node2.ID] + BigM * (node1.clu_id != node2.clu_id)
         Dis[node2.ID, node1.ID] = Dis[node1.ID, node2.ID]
 
-    Sequence, Total_Cost = TSP_model(Dis, Nodes=Nodes_pool)
 
+    Sequence, Total_Cost = TSP_model(Dis, Nodes=Nodes_pool)
     return Sequence, Total_Cost - BigM * (len(M_path) - 1)
 
 
@@ -201,7 +243,7 @@ class aggregationScheme:
             sys.exit("Invalid reference point option. \n Options: Centroid , Gravity")
 
         if cscost == "LB":
-            self.service_cost = None
+            self.service_cost = LU_service_cost
         elif cscost == "UB":
             self.service_cost = None
         elif cscost == "Combine":
@@ -212,7 +254,7 @@ class aggregationScheme:
             sys.exit("Invalid cluster service cost option. \n Options: LB, UB, Combine, SHC")
 
         if cstime == "LB":
-            self.service_time = None
+            self.service_time = LU_service_cost
         elif cstime == "UB":
             self.service_time = None
         elif cstime == "Combine":

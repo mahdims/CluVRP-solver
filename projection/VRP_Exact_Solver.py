@@ -104,13 +104,15 @@ def VRP_Model_SC(Data, Dis):
     Travel_time = list(Dis.values())
     Demand = {id: Data["Clusters"][id].demand for id in V_c}
     Demand["D0"] = 0
+    Service_time = {id: Data["Clusters"][id].service_time for id in V_c}
+    Service_time["D0"] = 0
     ################ MODEL 3 ####################
     # Basic CVRP ,  know number of vehicles , without travel time limit or time windows
     SF_MIP = Model("Single_Commodity_Flow ")
     x = SF_MIP.addVars(complement, lb=0, ub=1, name="x", vtype=GRB.BINARY)
     f = SF_MIP.addVars(complement, lb=0, name="f")
 
-    SF_MIP.setObjective(quicksum(Dis[i, j] * x[i, j] for i, j in x.keys()))
+    SF_MIP.setObjective(quicksum((Dis[i, j] + Service_time[i]) * x[i, j] for i, j in x.keys()))
     SF_MIP.addConstrs(quicksum(x.select(i, '*')) == 1 for i in V_c)
     SF_MIP.addConstrs(quicksum(x.select('*',i)) == 1 for i in V_c)
     SF_MIP.addConstrs(quicksum(f.select('*', i)) - quicksum(f.select(i, '*')) == Data["Clusters"][i].demand for i in V_c)

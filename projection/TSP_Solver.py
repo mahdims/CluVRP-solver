@@ -77,9 +77,9 @@ def Route_correction(Sequence):
     return Sequence
 
 
-def TSP_model(dis,Nodes):
+def TSP_model(dis, Nodes):
     global Gnodes, N
-    Gnodes=list(Nodes.keys())
+    Gnodes = list(Nodes.keys())
     N = len(Gnodes)
     Big_m = max(dis.values())
     dis["D0", "D1"] = dis["D1", "D0"] = -1 * Big_m
@@ -89,35 +89,65 @@ def TSP_model(dis,Nodes):
         D1 = Nodes.pop("D1")
         customer = list(Nodes.keys())[0]
         route = ["D0", customer, "D1"]
-        return route , dis[("D0", customer)] + dis[(customer,"D1")]
+        return route, dis[("D0", customer)] + dis[(customer, "D1")]
 
     TSP = Model("Tsp")
-    
-    # Create variables
-    
     x = {}
     for i,j in dis.keys():
          x[i,j] = TSP.addVar(obj=dis[i, j], vtype=GRB.BINARY, name='e'+str(i)+'_'+str(j))
-         #x[j,i] = TSP.addVar(obj=dis[j, i], vtype=GRB.BINARY, name='e'+str(j)+'_'+str(i))
 
     TSP._vars = x
     TSP.update()
     # Add flow balance constraints
-    TSP.addConstrs(quicksum(x[i,j] for i in Gnodes if j != i) == 1 for j in Gnodes)
-    TSP.addConstrs(quicksum(x[i,j] for j in Gnodes if j != i) == 1 for i in Gnodes)
-        
+    TSP.addConstrs(quicksum(x[i, j] for i in Gnodes if j != i) == 1 for j in Gnodes)
+    TSP.addConstrs(quicksum(x[i, j] for j in Gnodes if j != i) == 1 for i in Gnodes)
     TSP.update()
     # Optimize model
-    TSP.Params.OutputFlag=0
+    TSP.Params.OutputFlag = 0
     TSP.params.LazyConstraints = 1
     TSP.optimize(subtourelim)
     if TSP.status != 2:
         print("TSP is not feasible")
         return Gnodes
     solution = TSP.getAttr('x', x)
-    selected = [(i,j) for i,j in x.keys() if solution[i,j] > 0.5]
+    selected = [(i, j) for i, j in x.keys() if solution[i, j] > 0.5]
     route = subtour(selected)
-    if len(route) != N :
+    if len(route) != N:
         sys.exit(Gnodes)
     route = Route_correction(route)
     return route, (TSP.Objval + Big_m)
+
+
+# Solve with concorde
+from concorde.tsp import TSPSolver
+
+def TSP_concorde(dis, Nodes):
+    N = len(Nodes)
+    if N <= 3:
+        D0 = Nodes.pop("D0")
+        D1 = Nodes.pop("D1")
+        customer = list(Nodes.keys())[0]
+        route = ["D0", customer, "D1"]
+        return route, dis[("D0", customer)] + dis[(customer, "D1")]
+
+    lat = []
+    lon = []
+    nodes_list = []
+    del Nodes["D1"]
+    for node in Nodes.values():
+        if node.ID != "D0":
+            lat.append(node.coord[0])
+            lon.append(node.coord[1])
+            nodes_list.append("D0")
+        else:
+            lat.append(node.coord[0])
+            lon.append(node.coord[1])
+            nodes_list.append(node.ID)
+
+    solver = TSPSolver.from_data(lat, lon, norm="GEO")
+    tour_data = solver.solve()
+    assert tour_data.success
+    route = [nodes_list[i] for i in tour_data.tour]
+
+
+    return route , tour_data.optimal_value

@@ -1,4 +1,5 @@
-Leuven1	
+
+Leuven1
 TYPE : 	CVRP	
 DIMENSION : 	3001
 EDGE_WEIGHT_TYPE : 	EUC_2D	

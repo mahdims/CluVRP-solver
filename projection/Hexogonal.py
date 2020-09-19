@@ -124,7 +124,7 @@ class Hexo:
         if len(self.customers) <= 1:
             self.T_dis = {}
 
-        self.Calculate_time_measure()
+        # self.Calculate_time_measure()
 
     def add_customer(self, customer, New_T_dis={}):
         if New_T_dis:
@@ -136,6 +136,6 @@ class Hexo:
 
             self.customers[customer.ID] = customer
             self.T_dis[customer.ID] = New_T_dis
-            self.Calculate_time_measure()
+            # self.Calculate_time_measure()
         else:
             self.customers[customer.ID] = customer
