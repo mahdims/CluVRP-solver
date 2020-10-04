@@ -120,34 +120,44 @@ def TSP_model(dis, Nodes):
 
 # Solve with concorde
 from concorde.tsp import TSPSolver
-
 def TSP_concorde(dis, Nodes):
     N = len(Nodes)
-    if N <= 3:
+    BigM = 0
+
+    if N == 2:
+        print("Empty tour why?")
+        return list(Nodes.keys()), 0
+
+    if N == 3:
         D0 = Nodes.pop("D0")
         D1 = Nodes.pop("D1")
         customer = list(Nodes.keys())[0]
         route = ["D0", customer, "D1"]
         return route, dis[("D0", customer)] + dis[(customer, "D1")]
 
-    lat = []
-    lon = []
-    nodes_list = []
-    del Nodes["D1"]
-    for node in Nodes.values():
-        if node.ID != "D0":
-            lat.append(node.coord[0])
-            lon.append(node.coord[1])
-            nodes_list.append("D0")
-        else:
-            lat.append(node.coord[0])
-            lon.append(node.coord[1])
-            nodes_list.append(node.ID)
-
-    solver = TSPSolver.from_data(lat, lon, norm="GEO")
-    tour_data = solver.solve()
-    assert tour_data.success
-    route = [nodes_list[i] for i in tour_data.tour]
+    if N == 4:
+        D0 = Nodes.pop("D0")
+        D1 = Nodes.pop("D1")
+        customers = list(Nodes.keys())
+        route = ["D0"] + customers + ["D1"]
+        return route , dis[("D0", customers[0])] + dis[tuple(customers)] + dis[(customers[1], "D1")]
 
 
-    return route , tour_data.optimal_value
+    if "D0" in Nodes:
+        BigM = round(max(dis.values()), 3)
+        dis["D0", "D1"] = dis["D1", "D0"] = -1 * BigM
+
+    np_dis = np.zeros((N, N), dtype=np.int32)
+    Node_list = list(Nodes.keys())
+    for i, node1 in enumerate(Node_list):
+        for j, node2 in enumerate(Node_list):
+            if i != j:
+                np_dis[i, j] = int(10 * dis[node1, node2])
+
+    solver = TSPSolver.from_matrix(np_dis)
+    tour_data = solver.solve(time_bound=150)
+    if not tour_data.success:
+        uu = 0
+    route = [Node_list[i] for i in tour_data.tour]
+    route = Route_correction(route)
+    return route, tour_data.optimal_value/10 +BigM

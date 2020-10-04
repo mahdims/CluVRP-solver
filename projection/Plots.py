@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import Hexogonal
 
 
 def Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time):
@@ -19,7 +19,8 @@ def plot_out(ax, Data, Real_tours, Cost, Time):
 
     # draw clusters
     for cluster in Data["Clusters"].values():
-        ax.add_patch(cluster.Drawing())
+        if type(cluster) == Hexogonal.Hexo:
+            ax.add_patch(cluster.Drawing())
         cus_coord = np.array([cus.coord for cus in cluster.customers.values()])
         ax.scatter(cus_coord[:, 0], cus_coord[:, 1])
         ax.text(*cluster.reference, s=cluster.ID, fontsize=12)

@@ -1,5 +1,4 @@
 import time
-import numpy as np
 import random as rn
 import sys
 import copy
@@ -8,6 +7,7 @@ from collections import deque
 
 class Tour:
     Data = None
+
     def __init__(self, seq):
         self.seq = seq
         self.cost = 0
@@ -50,7 +50,7 @@ class Tour:
         if inx != 0 or inx != len(self)-1:
             if len(self) > 3:
                 self.cost += -Dis[self[inx-1], self[inx]] - Dis[self[inx], self[inx+1]] + Dis[self[inx-1], self[inx+1]] \
-                             + Tour.Data["Clusters"][node].service_time
+                             - Tour.Data["Clusters"][node].service_time
             else:
                 self.cost = 0
             self.demand -= Tour.Data["Clusters"][node].demand
@@ -80,9 +80,7 @@ def Savings_Alg(Data, Dis, V_c):
     symmetric distances.
     Webb, M. (1964). A study in transport routing. Glass Technology, 5:178181
     """
-
     unrouted = copy.copy(V_c)
-
     # Generate a list of seed nodes for emerging route inititialization
     # build a ordered priority queue of potential route initialization nodes
     seed_customers = copy.copy(V_c)
@@ -215,9 +213,9 @@ def accept(Data, tours):
 
 
 def LNS(Data, Dis):
-    max_iter = 70000
-    max_time = 20 # sec
-    max_no_improve = 2000
+    max_iter = 10000
+    max_time = 300 # sec
+    max_no_improve = 6000
 
     Tour.Data = Data
 
@@ -228,12 +226,13 @@ def LNS(Data, Dis):
     counter = 0
     no_improve = 0
     best_value = sum([t.cost for t in tours])
-    best_tour = copy.copy(tours)
+    best_tour = [t.seq[:] for t in tours]
     while counter < max_iter and no_improve < max_no_improve and time.time() < start + max_time:
         destroyed_tours, un_routed = destroy(Dis, tours)
         tours = repair(Data, Dis, destroyed_tours, un_routed)
         counter += 1
-        # if not accept(Data, tours): print("Big problem")
+        if not accept(Data, tours):
+            print("Big problem")
         if sum([t.cost for t in tours]) < best_value:
             best_value = sum([t.cost for t in tours])
             best_tour = [t.seq[:] for t in tours]

@@ -1,5 +1,5 @@
 import numpy as np
-
+from Hexogonal import Cluster
 
 def convert_the_coordinates(x, y, x_origin, y_origin):
     longitude_conversion_coe = 65.0673235 	#KM
@@ -37,25 +37,142 @@ class Customer:
         self.clu_id = 0
 
 
-def read_the_data(Path_2_file, path_2_dis_mat = None):
-    np.random.seed(0)
+def read_Li_data(Path_2_file):
+    customers = {}
+    f = open(Path_2_file, "r")
+    lines = list(f)
+    depot_flag= 0
+    cus_flag = 0
+    demand_flag = 0
+    f.close()
+    for line in lines:
+        if "DIMENSION" in line:
+            N = int(line.split(":")[1])
+        elif "CAPACITY" in line:
+            Cap = int(line.split(":")[1])
+        elif "NODE_COORD_SECTION" in line:
+            depot_flag = 1
+            cus_flag = 1
+            continue
+        elif "DEMAND_SECTION" in line:
+            cus_flag = 0
+            demand_flag = 1
+            continue
+        elif "DEPOT_SECTION" in line:
+            return depot, Cap, customers
+
+        if depot_flag:
+            depot = [float(a) for a in line.split(" ")[1:]]
+            depot = Customer("D0", depot, 0)
+            depot_flag = 0
+            continue
+
+        if cus_flag:
+            Id, x, y = [float(a) for a in line.split(" ")]
+            customers[Id] = Customer(Id, (x, y), 0)
+
+        if demand_flag:
+            Id, d = [int(a) for a in line.split(" ")]
+            if Id != 1:
+                customers[Id].demand = d
+
+    return depot, Cap, customers
+
+
+def read_Arnold_data(Path_2_file):
     f = open(Path_2_file, "r")
     lines = list(f)
     N = int(lines[3].split(":")[1])
     Cap = int(lines[5].split(":")[1])
     f.close()
-    clean_data = {}
     depot = lines[7: 8]
-    depot = [int(a) for a in depot[0].split("\t")[1:]]
+    depot = [float(a) for a in depot[0].split("\t")[1:]]
     depot = Customer("D0", depot, 0)
     customers_coord = lines[8: 8+N-1]
     customers_demand = lines[8+N+1:8+2*N]
     customers = {}
     for line_inx, cust in enumerate(customers_coord):
 
-        Id, x, y = [int(a) for a in cust.split("\t")]
+        Id, x, y = [float(a) for a in cust.split("\t")]
         demand = int(customers_demand[line_inx].split("\t")[1])
         customers[Id] = Customer(Id, (x,y), demand)
+
+    return depot, Cap, customers
+
+
+def read_clu_data(Path_2_file):
+    f = open(Path_2_file, "r")
+    lines = list(f)
+    f.close()
+    customers = {}
+    clusters = {}
+    depot_flag = 0
+    cus_flag = 0
+    clu_flag = 0
+    demand_flag = 0
+
+    for line in lines:
+        if "DIMENSION" in line:
+            N = int(line.split(":")[1])
+        elif "CAPACITY" in line:
+            Cap = int(line.split(":")[1])
+        elif "NODE_COORD_SECTION" in line:
+            depot_flag = 1
+            cus_flag = 1
+            continue
+        elif "GVRP_SET_SECTION" in line:
+            clu_flag = 1
+            cus_flag = 0
+            continue
+        elif "DEMAND_SECTION" in line:
+            clu_flag = 0
+            demand_flag = 1
+            continue
+        elif "INTRA_CLUSTER_DISTANCE" in line:
+            return depot, Cap, customers, clusters
+
+        if depot_flag:
+            depot = [float(a) for a in line.split(" ")[1:] if a]
+            depot = Customer("D0", depot, 0)
+            depot_flag = 0
+            continue
+
+        if cus_flag:
+            Id, x, y = [float(a) for a in line.split(" ") if a ]
+            Id = int(Id)
+            customers[Id] = Customer(Id, (x, y), 0)
+
+        if clu_flag:
+            cus_list = line.split(" ")[1:]
+            Id = int(cus_list[0])
+            new_cluster = Cluster(Id)
+            for cus in cus_list[1:-1]:
+                if cus:
+                    cus = int(cus)
+                    customers[cus].clu_id = Id
+                    new_cluster.customers[cus] = customers[cus]
+
+            clusters[Id] = new_cluster
+
+        if demand_flag:
+            Id, d = [int(a) for a in line.split(" ")[:-1] if a]
+            clusters[Id].demand = d
+
+    return depot, Cap, customers, clusters
+
+
+def read_the_data(Path_2_file, path_2_dis_mat=None):
+    clean_data = {}
+    if "Clu" in Path_2_file:
+        depot, Cap, customers, clusters = read_clu_data(Path_2_file)
+        clean_data["Clusters"] = clusters
+    else:
+        if "Arnold" in Path_2_file:
+            depot, Cap, customers = read_Arnold_data(Path_2_file)
+        elif"Li" in Path_2_file:
+            depot, Cap, customers = read_Li_data(Path_2_file)
+
+        clean_data["Clusters"] = {}
 
     x_range, y_range = XY_range(customers)
     # read the distance matrix file
@@ -76,7 +193,6 @@ def read_the_data(Path_2_file, path_2_dis_mat = None):
     clean_data["depot"] = depot
     clean_data["Aux_depot"] = Customer("D1", depot.coord, 0)
     clean_data["Customers"] = customers
-    clean_data["Clusters"] = {}
     clean_data["C"] = Cap
     clean_data["X_range"] = x_range
     clean_data["Y_range"] = y_range

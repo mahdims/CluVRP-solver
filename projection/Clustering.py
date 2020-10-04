@@ -41,20 +41,6 @@ def Change_neighbours_names(clusters, Trans_dict):
     return clusters
 
 
-def draw_the_honeycomb(clusters, X_range=(0,120), Y_range= (0,120)):
-    # This function is just for tests
-    # It will draw the honeycomb stracture with clusters numbers
-    fig, ax = plt.subplots(1)
-    ax.set_aspect('equal')
-    ax.axis([*X_range, *Y_range])
-    for key, cluster in clusters.items():
-        ax.add_patch(cluster.Drawing())
-        cus_coord = np.array([cus.coord for cus in cluster.customers.values()])
-        ax.scatter(cus_coord[:, 0], cus_coord[:, 1])
-        ax.text(*cluster.org, s=key, fontsize=12)
-    plt.show()
-
-
 def find_neighbors(Data, d,new_hex, count, indic, position):
     X_range = Data["X_range"]
     # Number of hexagonal in one column
@@ -86,40 +72,62 @@ def find_neighbors(Data, d,new_hex, count, indic, position):
 
     return Data, new_hex
 
+
+def cluster_analysis(Data, clusters):
+    N_cus= []
+    Clu_demand = []
+    for clu in clusters.values():
+        N_cus.append(len(clu.customers))
+        Clu_demand.append(clu.demand)
+    print(f"{len(clusters)} ({min(N_cus)} {max(N_cus)} {round(float(sum(N_cus))/len(N_cus), 2)}) "
+          f"({min(Clu_demand)} {max(Clu_demand)} {round(float(sum(Clu_demand))/len(Clu_demand),2)})")
+
+    draw_the_honeycomb(Data, clusters)
+    exit()
+
+def draw_the_honeycomb(Data, clusters):
+    X_range = Data["X_range"]
+    Y_range = Data["Y_range"]
+    # This function is just for tests
+    # It will draw the honeycomb stracture with clusters numbers
+    fig, ax = plt.subplots(1)
+    ax.set_aspect('equal')
+    ax.axis([*X_range, *Y_range])
+    for key, cluster in clusters.items():
+        ax.add_patch(cluster.Drawing())
+        cus_coord = np.array([cus.coord for cus in cluster.customers.values()])
+        ax.scatter(cus_coord[:, 0], cus_coord[:, 1])
+        ax.text(*cluster.org, s=key, fontsize=12)
+    plt.show()
+
+
 from Hexogonal import Hexo
 
-def Honeycomb_Clustering(Data):
-    # This function just create the clusters, find which customers are inside the clusters and only
-    # keep the clusters with customers inside
-    # The important factor of Region size (Hexagonal size) is "r"
-    TW_indicator = 0
+def create_the_clusters(Data, r):
+    Data["Clusters"] = {}
+    # This function create the clusters, find which customers are inside the clusters and only
+    # keep those clusters with customers inside
     Co = 0.8660254037844386
-    # radius
-    r = 80
-    # The cluster demand should be less than 0.3 0.4 0.5 presentage of the vehicle capacity
-    # If the demand variation is low then decrease the cluster size, if the variation is high and there is
-    # some clusters with only one customers and some with a lot more customers in the dense areas.
-    # Then you should assign the far customers to the nearest clusters in the center.
-    d = r * Co
     # maximum y or x in 2_D map
     X_range = Data["X_range"]
     Y_range = Data["X_range"]
+    d = r * Co
     count = 1
-    # Creating the clusters centers
+    flag = True
     for inx, x in enumerate(np.arange(X_range[0], X_range[1] + r, 1.5 * r)):
         inx += 1
-        position = "F" # the cluster in the first row
+        position = "F"  # the cluster in the first row
         indic = inx - int(inx / 2) * 2 == 0
-        for y in np.arange(Y_range[0] + indic * d, Y_range[1]+r, 2 * d):
-            if (y + 2*d) >= Y_range[1]+r:
-                position = "L" # cluster is in the last row
+        for y in np.arange(Y_range[0] + indic * d, Y_range[1] + r, 2 * d):
+            if (y + 2 * d) >= Y_range[1] + r:
+                position = "L"  # cluster is in the last row
             # Defining the clusters object
             new_hex = Hexo((x, y), r)
             # Find and update the cluster neighbors (it is just needed for re-clustering algorithm)
             # Data, new_hex = find_neighbors(Data, d, new_hex, count, indic, position)
             Data["Clusters"][count] = new_hex
             count += 1
-            position = "M" # cluster is in the middle rows
+            position = "M"  # cluster is in the middle rows
 
     # Find which customer is inside which cluster
     for cus in Data["Customers"].values():
@@ -134,7 +142,8 @@ def Honeycomb_Clustering(Data):
     ID_translation = {}
     for key, clu in Data["Clusters"].items():
         if clu.customers:
-            print(sum([cus.demand for cus in clu.customers.values()]))
+            clu.demand = sum([cus.demand for cus in clu.customers.values()])
+            flag = flag and clu.demand <= Data["C"]
             # assert sum([cus.demand for cus in clu.customers.values()]) <= Data["C"]
             # Assign the clusters ID
             clu.ID = "Cu" + str(ID_cont)
@@ -146,42 +155,46 @@ def Honeycomb_Clustering(Data):
         else:
             ID_translation[key] = []
 
-    used_clusters = dict(used_clusters)
+    return flag, dict(used_clusters), ID_translation
+
+
+def Honeycomb_Clustering(Data):
+    # The important factor of Region size (Hexagonal size) is "r"
+    # The cluster demand should be less than 0.3 0.4 0.5 presentage of the vehicle capacity
+    # If the demand variation is low then decrease the cluster size, if the variation is high and there is
+    # some clusters with only one customers and some with a lot more customers in the dense areas.
+    # Then you should assign the far customers to the nearest clusters in the center.
+    max_r = 100 # radius
+    min_r = 5
+    r = 80
+    flag, clusters, ID_trans = create_the_clusters(Data, r)
+    '''
+    while max_r-min_r > 0.2:
+        r = float(max_r + min_r) / 2
+        print(r)
+        flag, clusters, ID_trans = create_the_clusters(Data, r)
+        if flag:
+            min_r = r
+        else:
+            max_r = r
+
+    '''
+
+    # cluster_analysis(Data, clusters)
     # Change the neighbours ID
-    used_clusters = Change_neighbours_names(used_clusters, ID_translation)
+    clusters = Change_neighbours_names(clusters, ID_trans)
     # change the clusters according to the time windows suitabilities
     # Redefined_clusters = redefine_the_clusters(Data, used_clusters)
     # draw_the_honeycomb(Redefined_clusters, X_range, Y_range)
-    for clu in used_clusters.values():
+    for clu in clusters.values():
         # Assign the cluster name to customers
         for cus in clu.customers.values():
             cus.clu_id = clu.ID
         # create the cluster distance matrix (for inside clusters)
-        clu.cluster_dis_matrix(Data)
+        clu.cluster_dis_matrix(Data["Full_dis"])
         # create the transition set for each cluster
-        clu.Create_transSet(Data["Full_dis"], used_clusters)
+        clu.Create_transSet(Data["Full_dis"], clusters)
 
-    Data["Clusters"] = used_clusters
-
-    return Data
-
-
-'''
-def K_means_Clustering(Data):
-    customers_x = Data["Cx"]
-    customers_y = Data["Cy"]
-    # create kmeans object
-    N_of_clusters = 10
-    kmeans = KMeans(n_clusters=N_of_clusters)
-    # fit kmeans object to data
-    kmeans.fit(zip(customers_x.values(),customers_y.values()))
-    # save new clusters for chart
-    y_km = kmeans.fit_predict(zip(customers_x.values(),customers_y.values()))
-
-    for cl in range(N_of_clusters):
-        Clu = 0
-        Clu.K_mean_center =  kmeans.cluster_centers_[cl]
-        Data["Clusters"].append(Clu)
+    Data["Clusters"] = clusters
 
     return Data
-'''

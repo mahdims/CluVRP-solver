@@ -1,15 +1,75 @@
-import copy
-from math import sqrt , ceil
-import time
-import statistics as st
+from math import sqrt, ceil
 import itertools as it
 import numpy as np
 from matplotlib.patches import RegularPolygon
-from Clustering import Calculate_time_distance
 
 
 def euclidean_dis(A,B):
     return sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
+
+
+def cluster_matrix(self, Full_dis):
+    Dis = {}
+    for a, b in it.combinations(self.customers.keys(), 2):
+        if Full_dis:  # if the distance matrix is given
+            Dis[(a, b)] = Full_dis[(a, b)]
+            Dis[(b, a)] = Dis[(a, b)]
+        else:  # if there is not distance matrix use the direct distances
+            Dis[(a, b)] = euclidean_dis(self.customers[a].coord, self.customers[b].coord)
+            Dis[(b, a)] = Dis[(a, b)]
+
+    for cus in self.customers.values():
+        Dis["D0", cus.ID] = Dis[cus.ID, "D0"] = Full_dis["D0", cus.ID]
+        Dis[cus.ID, "D1"] = Dis["D1", cus.ID] = Dis["D0", cus.ID]
+    # Store the distance matrix for all nodes in one cluster
+    return Dis
+
+
+def transSet(self, dis, clusters):
+    transSet = {}
+    N = ceil(len(self.customers) * Hexo.trans_percentage)
+    for clu in clusters.values():
+        if clu.ID != self.ID:
+            cust_inx = it.product(list(self.customers.keys()), list(clu.customers.keys()))
+            inter_dis = {key: dis[key] for key in cust_inx}
+            inter_dis = sorted(inter_dis.items(), key=lambda x: x[1])
+            transSet[clu.ID] = []
+            while len(transSet[clu.ID]) < N:
+                ((node, _), _) = inter_dis.pop(0)
+                if node not in transSet[clu.ID]:
+                    transSet[clu.ID].append(node)
+    # find the nodes that connect this cluster to the depot
+    cust_inx = it.product(["D0"],list(self.customers.keys()))
+    inter_dis = {key: dis[key] for key in cust_inx}
+    inter_dis = sorted(inter_dis.items(), key=lambda x: x[1])
+    transSet["D0"] = [node for (_, node), _ in inter_dis[:N]]
+
+    return transSet
+
+
+class Cluster:
+
+    def __init__(self, ID):
+        self.ID = ID
+        self.trans_nodes = {}
+        self.customers = {}
+        self.neighbours = []
+        self.reference = []
+        self.demand = 0
+        self.TW = [0, 0]
+        self.Dis = {}
+        self.HC_sequence = []
+        self.HC_cost = []
+        self.service_time = 0
+
+    def cluster_dis_matrix(self, Full_dis):
+        self.Dis = cluster_matrix(self, Full_dis)
+
+    def Create_transSet(self, dis, clusters):
+        self.trans_nodes = transSet(self, dis, clusters)
+
+    def Is_node_here(self, ID):
+        return ID in self.customers.keys()
 
 
 class Hexo:
@@ -32,7 +92,6 @@ class Hexo:
         self.area = round(3*3**(0.5)*self.r**2 / 2, 4)
 
         self.trans_nodes = {}
-
         self.customers = {}
         self.neighbours = []
         self.Time_measure = 0
@@ -46,42 +105,11 @@ class Hexo:
         self.HC_cost = []
         self.service_time = 0
 
-    def cluster_dis_matrix(self, Data):
-        Dis = {}
-        Full_dis = Data["Full_dis"]
-        for a, b in it.combinations(self.customers.keys(), 2):
-            if Full_dis:  # if the distance matrix is given
-                Dis[(a, b)] = Full_dis[(a, b)]
-                Dis[(b, a)] = Dis[(a, b)]
-            else:  # if there is not distance matrix use the direct distances
-                Dis[(a, b)] = euclidean_dis(self.customers[a].coord, self.customers[b].coord)
-                Dis[(b, a)] = Dis[(a, b)]
-
-        for cus in self.customers.values():
-            Dis["D0", cus.ID] = Dis[cus.ID, "D0"] = Full_dis["D0", cus.ID]
-            Dis[cus.ID, "D1"] = Dis["D1", cus.ID] = Dis["D0", cus.ID]
-        # Store the distance matrix for all nodes in one cluster
-        self.Dis = Dis
+    def cluster_dis_matrix(self, Full_dis):
+        self.Dis = cluster_matrix(self, Full_dis)
 
     def Create_transSet(self, dis, clusters):
-        transSet = {}
-        N = ceil(len(self.customers) * Hexo.trans_percentage)
-        for clu in clusters.values():
-            if clu.ID != self.ID:
-                cust_inx = it.product(list(self.customers.keys()), list(clu.customers.keys()))
-                inter_dis = {key: dis[key] for key in cust_inx}
-                inter_dis = sorted(inter_dis.items(), key=lambda x: x[1])
-                transSet[clu.ID] = []
-                while len(transSet[clu.ID]) < N:
-                    ((node, _), _) = inter_dis.pop(0)
-                    if node not in transSet[clu.ID]:
-                        transSet[clu.ID].append(node)
-        # find the nodes that connect this cluster to the depot
-        cust_inx = it.product(["D0"],list(self.customers.keys()))
-        inter_dis = {key: dis[key] for key in cust_inx}
-        inter_dis = sorted(inter_dis.items(), key=lambda x: x[1])
-        transSet["D0"] = [node for (_, node), _ in inter_dis[:N]]
-        self.trans_nodes = transSet
+        self.trans_nodes = transSet(self, dis, clusters)
 
     def Drawing(self):
         # Create a hexagonal object

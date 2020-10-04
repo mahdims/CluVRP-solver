@@ -1,3 +1,4 @@
+
 NAME : 	Ghent2	
 TYPE : 	CVRP	
 DIMENSION : 	11001

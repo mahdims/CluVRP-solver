@@ -16,7 +16,8 @@ from Plots import Draw_on_a_plane
 
 def get_files_name(arg):
     # This function will get the arg and return the path to instance files and distance matrix if specified
-    file_name = "Uchoa/X-n491-k59.vrp"
+    file_name = "Clu/Li/640.vrp-C129-R5.gvrp"
+    # file_name = "Arnold/Leuven1.txt"
     Dis_mat_name = "vrp_solver_matrix.txt"
     TW_indicator = 0
     CWD = os.getcwd()
@@ -67,17 +68,23 @@ def run_aggregation_disaggregation(arg):
     Data = read_the_data(path_2_instance)
     # Create the full distance matrix
     Data["Full_dis"] = build_distance_matrix(Data["depot"], Data["Customers"])
-    # Implement the honeycomb clustering
-    Data = Honeycomb_Clustering(Data)
+    if not Data["Clusters"]:
+        # Implement the honeycomb clustering
+        Data = Honeycomb_Clustering(Data)
+    else:
+        for clu in Data["Clusters"].values():
+            clu.cluster_dis_matrix(Data["Full_dis"])
+            clu.Create_transSet(Data["Full_dis"], Data["Clusters"])
+
     # Create the aggregation scheme
     agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="SHC", inter="Nearest",
                                    disAgg="OneTsp", entry_exit="SHPs")
     # Aggregation
     Data, clu_dis = aggregation(Data, agg_scheme)
     # compute and write the aggregated distance/consumption file for VRP solver
-    path_2_dis_mat = Write_AggDis_mat(Data, path_2_instance, clu_dis)
+    # path_2_dis_mat = Write_AggDis_mat(Data, path_2_instance, clu_dis)
     # write the aggregated input file for VRP solver
-    path_2_instance = Write_AggInstance(path_2_instance, Data)
+    # path_2_instance = Write_AggInstance(path_2_instance, Data)
 
     # Run the VRP solver
     # objVal, Master_route = VRP_Model_SC(Data, clu_dis)
@@ -94,6 +101,7 @@ def run_aggregation_disaggregation(arg):
     Run_time = time.time() - Timer_start
     print(f"Total cost = {Total_Cost}")
     print(f"Runtime = {Run_time}")
+    print(f"Number of vehicles = {len(Master_route)}")
     # Draw the final tours all together
     Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
     # save the CUSTOMERS SEQUENCE

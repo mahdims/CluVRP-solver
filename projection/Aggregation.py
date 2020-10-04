@@ -61,7 +61,7 @@ def LU_service_cost(Data, clu):
         nodeSet["D0"] = nodeSet[cus1]
         nodeSet["D1"] = nodeSet[cus2]
         del nodeSet[cus1], nodeSet[cus2]
-        HP, HP_cost = TSP_model(distance, Nodes=nodeSet)
+        HP, HP_cost = TSP_concorde(distance, Nodes=nodeSet)
         HP[0] = cus1
         HP[-1] = cus2
         Hamiltonian_paths[(cus1, cus2)] = [HP_cost, HP]
@@ -82,7 +82,7 @@ def Hamiltonian_cycle(Data, clu, TW_indicator=0):
         # clu.HC_sequence, clu.HC_cost = TSPTW_model(Dis, Nodes=TSP_Nodes, start_time=0)
         pass
     else:
-        # clu.HC_sequence, clu.HC_cost = TSP_model(clu.Dis, Nodes=TSP_Nodes)
+        #clu.HC_sequence, clu.HC_cost = TSP_model(clu.Dis, Nodes=TSP_Nodes)
         clu.HC_sequence, clu.HC_cost = TSP_concorde(clu.Dis, TSP_Nodes)
 
     if not clu.HC_sequence:
@@ -142,16 +142,13 @@ def nearest_inter_cluster(Data):
 
 
 def DisAgg_HC(Data, M_path, TW_indicator=0):
-    BigM = 10 * max(Data["Full_dis"].values())
+    BigM = 2 * max(Data["Full_dis"].values())
     Clusters = Data["Clusters"]
-    Nodes_pool = {}
+    Nodes_pool = {"D0": Data["depot"] }
     Dis = {}
     # Build the node pool
-    for inx, clu_ID in enumerate(M_path[:-1]):
+    for inx, clu_ID in enumerate(M_path[1:-1]):
         # The first node should be the depot
-        if clu_ID == "D0":
-            Nodes_pool[clu_ID] = Data["depot"]
-            continue
         Clu = Clusters[clu_ID]
         Nodes_pool.update({cus_id: cus for cus_id, cus in Clu.customers.items()})
     # last customer should be depot as well
@@ -161,8 +158,7 @@ def DisAgg_HC(Data, M_path, TW_indicator=0):
         Dis[node1.ID, node2.ID] = Data["Full_dis"][node1.ID, node2.ID] + BigM * (node1.clu_id != node2.clu_id)
         Dis[node2.ID, node1.ID] = Dis[node1.ID, node2.ID]
 
-
-    Sequence, Total_Cost = TSP_model(Dis, Nodes=Nodes_pool)
+    Sequence, Total_Cost = TSP_concorde(Dis, Nodes=Nodes_pool)
     return Sequence, Total_Cost - BigM * (len(M_path) - 1)
 
 
@@ -204,9 +200,10 @@ def DisAgg_Sequential(Data, M_path, TW_indicator=0):
         Nodes[next_node.ID] = next_node
         Nodes[last_node.ID] = last_node
         if TW_indicator:
-            Sequence, Current_time = TSPTW_model(Dis, Nodes, start_time)
+            #Sequence, Current_time = TSPTW_model(Dis, Nodes, start_time)
+            pass
         else:
-            Sequence, Current_time = TSP_model(Dis, Nodes)
+            Sequence, Current_time = TSP_concorde(Dis, Nodes)
 
         # Update the total time
         if M_path[inx + 1] == "D0":
@@ -234,6 +231,7 @@ def DisAgg_Sequential(Data, M_path, TW_indicator=0):
 
 
 class aggregationScheme:
+
     def __init__(self, ref, cscost, cstime, inter, disAgg, entry_exit):
         if ref == "Centroid":
             self.reference_point = Centroid
@@ -289,7 +287,6 @@ class aggregationScheme:
 def aggregation_pars(Data, Scheme):
     # This calculates the aggregated parameters , cluster demand, cluster service time and cost
     for clu in Data["Clusters"].values():
-        clu.demand = sum([cus.demand for cus in clu.customers.values()])
         clu.reference = Scheme.reference_point(clu.customers)
         clu.service_time = Scheme.service_time(Data, clu,)
         clu.service_cost = Scheme.service_time(Data, clu,)
