@@ -139,11 +139,8 @@ def VRP_Model_SC(Data, Dis):
                 Tour_demand += Demand[node]
             if Tour_demand >= Data["C"]:
                 print("The tour demand is more than Q by %f" %(Tour_demand-Data["C"]))
-        test = list(set(test))
-        test.sort()
-        if list(Node_set) != test:
-            print("found the mistake : not all nodes covered by vehicles")
-            print(set(Node_set) - set(test))
+
+        print(set(Node_set) - set(test))
         # VisitTime=[]
         # for tour in Tours:
         #    VisitTime.append([])

@@ -110,12 +110,16 @@ def read_clu_data(Path_2_file):
     cus_flag = 0
     clu_flag = 0
     demand_flag = 0
-
+    M = 0
     for line in lines:
         if "DIMENSION" in line:
             N = int(line.split(":")[1])
         elif "CAPACITY" in line:
             Cap = int(line.split(":")[1])
+
+        elif "VEHICLES" in line:
+            M = int(line.split(":")[1])
+
         elif "NODE_COORD_SECTION" in line:
             depot_flag = 1
             cus_flag = 1
@@ -129,7 +133,7 @@ def read_clu_data(Path_2_file):
             demand_flag = 1
             continue
         elif "INTRA_CLUSTER_DISTANCE" in line:
-            return depot, Cap, customers, clusters
+            return M, depot, Cap, customers, clusters
 
         if depot_flag:
             depot = [float(a) for a in line.split(" ")[1:] if a]
@@ -158,13 +162,13 @@ def read_clu_data(Path_2_file):
             Id, d = [int(a) for a in line.split(" ")[:-1] if a]
             clusters[Id].demand = d
 
-    return depot, Cap, customers, clusters
+    return M, depot, Cap, customers, clusters
 
 
 def read_the_data(Path_2_file, path_2_dis_mat=None):
     clean_data = {}
     if "Clu" in Path_2_file:
-        depot, Cap, customers, clusters = read_clu_data(Path_2_file)
+        M, depot, Cap, customers, clusters = read_clu_data(Path_2_file)
         clean_data["Clusters"] = clusters
     else:
         if "Arnold" in Path_2_file:
@@ -191,6 +195,7 @@ def read_the_data(Path_2_file, path_2_dis_mat=None):
         clean_data["Full_consump"] = Full_consump
 
     clean_data["depot"] = depot
+    clean_data["Vehicles"] = M
     clean_data["Aux_depot"] = Customer("D1", depot.coord, 0)
     clean_data["Customers"] = customers
     clean_data["C"] = Cap

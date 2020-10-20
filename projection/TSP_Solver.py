@@ -142,7 +142,6 @@ def TSP_concorde(dis, Nodes):
         route = ["D0"] + customers + ["D1"]
         return route , dis[("D0", customers[0])] + dis[tuple(customers)] + dis[(customers[1], "D1")]
 
-
     if "D0" in Nodes:
         BigM = round(max(dis.values()), 3)
         dis["D0", "D1"] = dis["D1", "D0"] = -1 * BigM
@@ -152,7 +151,7 @@ def TSP_concorde(dis, Nodes):
     for i, node1 in enumerate(Node_list):
         for j, node2 in enumerate(Node_list):
             if i != j:
-                np_dis[i, j] = int(10 * dis[node1, node2])
+                np_dis[i, j] = int(100 * dis[node1, node2])
 
     solver = TSPSolver.from_matrix(np_dis)
     tour_data = solver.solve(time_bound=150)
@@ -160,4 +159,4 @@ def TSP_concorde(dis, Nodes):
         uu = 0
     route = [Node_list[i] for i in tour_data.tour]
     route = Route_correction(route)
-    return route, tour_data.optimal_value/10 +BigM
+    return route, tour_data.optimal_value/100 +BigM

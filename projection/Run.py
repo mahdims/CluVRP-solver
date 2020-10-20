@@ -13,10 +13,20 @@ from VRP_Exact_Solver import VRP_Model_SC, VRP_Model_2CF
 from LNS_Algorithm import LNS
 from Plots import Draw_on_a_plane
 
+def obj_calc(dist, routes):
+    cost = 0
+    for route in routes:
+        pre_cus = route[1][0]
+        for cus in route[1][1:]:
+            cost += dist[pre_cus, cus]
+            pre_cus = cus
+
+    return cost
 
 def get_files_name(arg):
     # This function will get the arg and return the path to instance files and distance matrix if specified
-    file_name = "Clu/Li/640.vrp-C129-R5.gvrp"
+    # file_name = "Clu/Golden/Golden_16-C33-N481.gvrp"
+    file_name = "Clu/Li/560.vrp-C113-R5.gvrp"
     # file_name = "Arnold/Leuven1.txt"
     Dis_mat_name = "vrp_solver_matrix.txt"
     TW_indicator = 0
@@ -100,6 +110,7 @@ def run_aggregation_disaggregation(arg):
 
     Run_time = time.time() - Timer_start
     print(f"Total cost = {Total_Cost}")
+    print(obj_calc(Data["Full_dis"], Real_tours))
     print(f"Runtime = {Run_time}")
     print(f"Number of vehicles = {len(Master_route)}")
     # Draw the final tours all together
