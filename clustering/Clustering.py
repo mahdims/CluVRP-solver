@@ -101,7 +101,7 @@ def draw_the_honeycomb(Data, clusters):
     plt.show()
 
 
-from Hexogonal import Hexo
+from clustering import Hexogonal
 
 def create_the_clusters(Data, r):
     Data["Clusters"] = {}

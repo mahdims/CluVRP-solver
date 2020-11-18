@@ -5,7 +5,7 @@ import pickle
 import copy
 import itertools as it
 import math
-from read import Customer
+from utils import read
 import os
 from collections import deque
 
@@ -184,30 +184,13 @@ def Random_removal(destroyed_tours, un_routed, N_remove):
     return destroyed_tours, un_routed
 
 
-def Route_removal(destroyed_tours, un_routed):
-    inx = len(destroyed_tours) - 1
-    while inx >= 0:
-        if len(destroyed_tours[inx]) < 3:
+def Route_removal(destroyed_tours, un_routed, M):
+    if M:
+        while len(destroyed_tours) > M:
+            inx = rn.randint(0, len(destroyed_tours))
+            un_routed += destroyed_tours[inx].without_depot()
             del destroyed_tours[inx]
-            inx -= 1
-            continue
 
-        if M:
-            if len(destroyed_tours) < M:
-                pass
-            elif len(destroyed_tours) > M:
-                un_routed += destroyed_tours[inx].without_depot()
-                del destroyed_tours[inx]
-            else:
-                if rn.random() < 0.15:
-                    un_routed += destroyed_tours[inx].without_depot()
-                    del destroyed_tours[inx]
-        else:
-            if rn.random() < 0.15:
-                un_routed += destroyed_tours[inx].without_depot()
-                del destroyed_tours[inx]
-
-        inx -= 1
     return destroyed_tours, un_routed
 
 
@@ -430,19 +413,19 @@ def Regret_insertion(Data, tours, un_routed):
 
 
 def destroy(tours, unable_2_route, M=None):
+
     un_routed = unable_2_route[:]
-    N_remove = math.ceil(0.2 * len(Tour.Data["Clusters"])) - len(un_routed)
-    assert feasibility_check(Tour.Data, tours, unable_2_route)
+    N_remove = math.ceil(0.3 * len(Tour.Data["Clusters"])) - len(un_routed)
+
     rand_number = rn.random()
     if rand_number < 0.6:
         destroyed_tours, un_routed = Shaw_removal(tours, un_routed, N_remove)
-        assert feasibility_check(Tour.Data, destroyed_tours, un_routed)
+
     elif rand_number < 0.9:
         destroyed_tours, un_routed = Worst_removal(tours, un_routed, N_remove)
-        assert feasibility_check(Tour.Data, destroyed_tours, un_routed)
+
     elif rand_number < 1:
         destroyed_tours, un_routed = Random_removal(tours, un_routed, N_remove)
-        assert feasibility_check(Tour.Data, destroyed_tours, un_routed)
 
     inx = len(destroyed_tours) - 1
 
@@ -451,18 +434,25 @@ def destroy(tours, unable_2_route, M=None):
             del destroyed_tours[inx]
         inx -= 1
 
+    if len(destroyed_tours) > M:
+        destroyed_tours, un_routed = Route_removal(destroyed_tours, un_routed, M)
+
     return destroyed_tours, un_routed
 
 
 def repair(Data, tours, un_routed):
+    M = Data["Vehicles"]
+    while len(tours) < M and un_routed:
+        tours, un_routed = create_new_route(M, tours, un_routed)
+
+
     rand = rn.random()
-    if rand < 1:
+    if rand < 0.6:
         tours, un_routed = Greedy_insertion(Data, tours, un_routed)
 
     else:
         tours, un_routed = Regret_insertion(Data, tours, un_routed)
 
-    assert feasibility_check(Data, tours, un_routed)
     return tours, un_routed
 
 
@@ -476,7 +466,8 @@ def feasibility_check(Data, tours, un_routed=[]):
         print("Vehicle capacity is not meet")
     if Data["Vehicles"] != 0:
         # print(len(tours))
-        condition = condition and Data["Vehicles"] == len(tours)
+        pass
+        # condition = condition and Data["Vehicles"] == len(tours)
     if not condition:
         print("The number of vehicle is not meet")
     condition = len(all_nodes) + len(un_routed) == len(Data["Clusters"]) and condition
@@ -486,9 +477,9 @@ def feasibility_check(Data, tours, un_routed=[]):
     return condition
 
 
-def accept(tours, un_routed, best_value, temperature):
+def accept(M, tours, un_routed, best_value, temperature):
     flag = False
-    current_cost = sum([t.cost for t in tours]) + 10000 * len(un_routed)
+    current_cost = sum([t.cost for t in tours]) + 10000 * (len(un_routed) + abs(len(tours) - M))
     if current_cost < best_value:
         flag = True
     elif rn.random() <= math.exp(-1 * (current_cost - best_value)/temperature):
@@ -498,6 +489,7 @@ def accept(tours, un_routed, best_value, temperature):
 
 
 def LNS(Data, Dis):
+    M = Data["Vehicles"]
     # initial tours
     Tour.Data = Data
     Dis["D0", "D0"] = 0
@@ -510,7 +502,7 @@ def LNS(Data, Dis):
     # LNS parameters
     max_iter = 50000
     max_time = 300 # sec
-    max_no_improve = 6000
+    max_no_improve = 5000
 
     start_temp = sum([t.cost for t in current_tours])
     current_temp = start_temp
@@ -527,16 +519,17 @@ def LNS(Data, Dis):
         current_tours = pickle.loads(pickle_tours)
         destroyed_tours, un_routed = destroy(current_tours, current_unrouted, Data["Vehicles"])
         new_tours, un_routed = repair(Data, destroyed_tours, un_routed)
+        # print(un_routed)
 
         counter += 1
-        if accept(new_tours, un_routed, best_value, current_temp):
+        if accept(M, new_tours, un_routed, best_value, current_temp):
             pickle_tours = pickle.dumps(new_tours)
             current_unrouted = un_routed[:]
             #print("Current is changed")
             current_value = sum([t.cost for t in new_tours])
-            if current_value < best_value:
+            if round(current_value,4) < round(best_value,4):
                 best_tour = pickle.dumps(new_tours)
-                best_value = current_value
+                best_value = current_value + 10000 * (len(un_routed) + abs(len(new_tours) - M))
                 print(f"New_best: {best_value}")
                 no_improve = 0
             else:
@@ -545,6 +538,8 @@ def LNS(Data, Dis):
             no_improve += 1
 
         current_temp = current_temp * cooling_rate
+
+    best_tour = pickle.loads(best_tour)
     return best_value, best_tour
 
 
@@ -613,23 +608,33 @@ def dist_matrix_calc(Data):
     return dist_matrix
 
 
-def run_LNS(file_name=None):
+def run_LNS(file_name=None, M=0):
+    start = time.time()
     if not file_name:
         file_name = "P/P-n45-k5.vrp"
-    M = 5
     Path_2_file = os.getcwd().replace("projection", "data") + "/" + file_name
     data = read_data(Path_2_file, M)
     dis = dist_matrix_calc(data)
 
     best_value, best_tour = LNS(data, dis)
-    best_tour = pickle.loads(best_tour)
+
     print(f"Is the final solution feasible ? {feasibility_check(data, best_tour)}")
 
     for tour in best_tour:
         print(tour)
-    print(best_value)
+    runtime = round(time.time() - start,2)
+    print(runtime)
+    return round(best_value,2), len(best_tour), runtime
 
-
+import glob
+import pandas as pd
 if __name__ == "__main__":
+    file_names = glob.glob("data/P/*.vrp")
+    results = []
+    for file in ["data/P/P-n50-k10.vrp"]: # file_names:
+        M = int(file.split("k")[1].split(".vrp")[0])
+        results.append([file.replace("data/P/",""), *run_LNS(file, M)])
 
-    run_LNS()
+    df1 = pd.DataFrame(results,
+                       columns=['Instance', 'Obj', 'Vehicles', 'Time'])
+    df1.to_csv("results.csv")

@@ -5,13 +5,13 @@ import time
 import getopt
 import math
 import itertools as it
-from utils import read
-from clustering import Clustering
+from read import read_the_data
+from Clustering import Honeycomb_Clustering
 from Aggregation import aggregationScheme, aggregation
-from utils import Write_files
-from vrp_solver import VRP_Exact_Solver
-from vrp_solver import LNS_Algorithm
-from utils import Plots
+from Write_files import Write_AggInstance, Write_AggDis_mat
+from VRP_Exact_Solver import VRP_Model_SC, VRP_Model_2CF
+from LNS_Algorithm import LNS
+from Plots import Draw_on_a_plane
 
 def obj_calc(dist, routes):
     cost = 0
@@ -75,20 +75,20 @@ def run_aggregation_disaggregation(arg, filename):
     path_2_instance = get_files_name(arg, filename)
     Timer_start = time.time()
     # read the data from  the text file
-    Data = read.read_the_data(path_2_instance)
+    Data = read_the_data(path_2_instance)
     # Create the full distance matrix
     Data["Full_dis"] = build_distance_matrix(Data["depot"], Data["Customers"])
     if not Data["Clusters"]:
         # Implement the honeycomb clustering
-        Data = Clustering.Honeycomb_Clustering(Data)
+        Data = Honeycomb_Clustering(Data)
     else:
         for clu in Data["Clusters"].values():
             clu.cluster_dis_matrix(Data["Full_dis"])
             clu.Create_transSet(Data["Full_dis"], Data["Clusters"])
 
     # Create the aggregation scheme
-    agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="LB", inter="Ref2Ref",
-                                   disAgg="Sequential", entry_exit="SHPs")
+    agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="SHC", inter="Nearest",
+                                   disAgg="OneTsp", entry_exit="SHPs")
     # Aggregation
     Data, clu_dis = aggregation(Data, agg_scheme)
     # compute and write the aggregated distance/consumption file for VRP solver
@@ -98,7 +98,7 @@ def run_aggregation_disaggregation(arg, filename):
 
     # Run the VRP solver
     # objVal, Master_route = VRP_Model_SC(Data, clu_dis)
-    objVal, Master_route = LNS_Algorithm.LNS(Data, clu_dis)
+    objVal, Master_route = LNS(Data, clu_dis)
 
     # Dis-aggregation
     Real_tours = []
@@ -114,7 +114,7 @@ def run_aggregation_disaggregation(arg, filename):
     print(f"Runtime = {Run_time}")
     print(f"Number of vehicles = {len(Master_route)}")
     # Draw the final tours all together
-    Plots.Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
+    # Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
     # save the CUSTOMERS SEQUENCE
     # save_the_customers_sequence(CWD,file_name, Real_tours,Total_Cost,Run_time )
     return Total_Cost, len(Master_route), Run_time
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     # run_aggregation_disaggregation(sys.argv[1:])
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
-    for file in ['data/Clu/Golden/Golden_17-C35-N241.gvrp']:#file_names:
+    for file in file_names:
         # M = int(file.split("k")[1].split(".vrp")[0])
         results.append([file.replace("data/Clu/Golden/",""), *run_aggregation_disaggregation(None, file)])
 

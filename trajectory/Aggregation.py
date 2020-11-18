@@ -4,8 +4,8 @@ import copy
 import sys
 import itertools as it
 from math import sqrt
-from utils import read
-from tsp_solver import TSP_Solver
+from read import Customer
+from TSP_Solver import TSP_model, TSP_concorde
 
 
 def euclidean_dis(A,B):
@@ -30,47 +30,42 @@ def Gravity(customers):
 
 
 def LU_service_cost(Data, clu):
+
     if len(clu.customers) == 1:
         return list(clu.customers.values())[0].service_time
     elif len(clu.customers) == 2:
 
-        return clu.Dis[tuple(list(clu.customers.keys()))] + sum([cus.service_time for cus in clu.customers.values()])
+        return clu.Dis[tuple(list(clu.customers.keys()))] +sum([cus.service_time for cus in clu.customers.values()])
     transSet = []
     for a in clu.trans_nodes.values():
         transSet += a
     transSet = list(set(transSet))
 
-    TSP_Nodes = copy.copy(clu.customers)
     Hamiltonian_paths = {}
-
-    if len(transSet) == len(clu.customers):
-        # The acceleration only works if all customers can be used as trans nodes
-        clu.HC_sequence, clu.HC_cost = TSP_Solver.solve(clu.Dis, TSP_Nodes)
-        maxArc = None
-        pre_node = clu.HC_sequence[0]
-        maxDis = clu.Dis[pre_node, clu.HC_sequence[1]]
-        Min_cost = clu.HC_cost - maxDis
-        Hamiltonian_paths[(pre_node, clu.HC_sequence[1])] = [Min_cost, clu.HC_sequence]
-        for node in clu.HC_sequence[1:]:
-            if clu.Dis[pre_node, node] > maxDis:
-                maxDis = clu.Dis[pre_node, node]
-                maxArc = pre_node, node
-
-            pre_node = node
-
-        if maxArc:
-            Min_cost = clu.HC_cost - maxDis
-            Hamiltonian_paths[maxArc] = [Min_cost, clu.HC_sequence]
-    else:
-        maxDis = 0
-
     for cus1, cus2 in it.combinations(transSet, 2):
-        if clu.Dis[cus1, cus2] > maxDis:
-            HP, HP_cost = TSP_Solver.solve(clu.Dis, Nodes=clu.customers, start=cus1, end=cus2)
-            Hamiltonian_paths[(cus1, cus2)] = [HP_cost, HP]
-
-    if Hamiltonian_paths:
-        MinHp, (Min_cost, Seq) = min(Hamiltonian_paths.items(), key=lambda x: x[1][0])
+        distance = copy.copy(clu.Dis)
+        # Create the distance matrix
+        for n in set(clu.customers.keys()) - set([cus1, cus2]):
+                distance["D0", n] = distance[cus1, n]
+                distance[n, "D0"] = distance["D0", n]
+                del distance[cus1, n], distance[n, cus1]
+                distance[n, "D1"] = distance[n, cus2]
+                distance["D1", n] = distance[n, "D1"]
+                del distance[n, cus2], distance[cus2, n]
+        for n,m in it.combinations([cus1, cus2, "D0", "D1"],2):
+            try:
+                del distance[n, m], distance[m, n]
+            except KeyError:
+                pass
+        nodeSet = copy.copy(clu.customers)
+        nodeSet["D0"] = nodeSet[cus1]
+        nodeSet["D1"] = nodeSet[cus2]
+        del nodeSet[cus1], nodeSet[cus2]
+        HP, HP_cost = TSP_concorde(distance, Nodes=nodeSet)
+        HP[0] = cus1
+        HP[-1] = cus2
+        Hamiltonian_paths[(cus1, cus2)] = [HP_cost, HP]
+    MinHp, (Min_cost, Seq) = min(Hamiltonian_paths.items(), key=lambda x: x[1][0])
 
     return int(Min_cost + sum([cus.service_time for cus in clu.customers.values()]))
 
@@ -87,7 +82,8 @@ def Hamiltonian_cycle(Data, clu, TW_indicator=0):
         # clu.HC_sequence, clu.HC_cost = TSPTW_model(Dis, Nodes=TSP_Nodes, start_time=0)
         pass
     else:
-        clu.HC_sequence, clu.HC_cost = TSP_Solver.solve(clu.Dis, TSP_Nodes)
+        #clu.HC_sequence, clu.HC_cost = TSP_model(clu.Dis, Nodes=TSP_Nodes)
+        clu.HC_sequence, clu.HC_cost = TSP_concorde(clu.Dis, TSP_Nodes)
 
     if not clu.HC_sequence:
         sys.exit("Cluster %s is infeasible" % clu.ID)
@@ -162,12 +158,14 @@ def DisAgg_HC(Data, M_path, TW_indicator=0):
         Dis[node1.ID, node2.ID] = Data["Full_dis"][node1.ID, node2.ID] + BigM * (node1.clu_id != node2.clu_id)
         Dis[node2.ID, node1.ID] = Dis[node1.ID, node2.ID]
 
-    Sequence, Total_Cost = TSP_Solver.solve(Dis, Nodes=Nodes_pool, start="D0", end="D1")
+    Sequence, Total_Cost = TSP_concorde(Dis, Nodes=Nodes_pool)
     return Sequence, Total_Cost - BigM * (len(M_path) - 1)
 
 
 def DisAgg_Sequential(Data, M_path, TW_indicator=0):
     Clusters = Data["Clusters"]
+    N = max(M_path)
+    start_time = 0
     real_path = []
     Total_time = 0
     last_node_ID = "D0"
@@ -187,19 +185,16 @@ def DisAgg_Sequential(Data, M_path, TW_indicator=0):
             next_node = copy.copy(Data["depot"])
             next_node.ID = "D1"
         else: # otherwise (if we are at a middle cluster)
-            next_node = read.Customer("D1", Clusters[M_path[inx+1]].reference, 0, Data["depot"].TW, 0)
+            next_node = Customer("D1", Clusters[M_path[inx+1]].reference, 0, Data["depot"].TW, 0)
 
         # update the distance matrix to include the last and next node
         for n, cus in Clu.customers.items():
             Dis[last_node.ID, n] = Data["Full_dis"][(last_node_ID, cus.ID)]
-            Dis[n, last_node.ID] = Dis[last_node.ID, n]
             if M_path[inx + 1] == "D0":
                 Dis[n, next_node.ID] = Data["Full_dis"][("D0", cus.ID)]
             else:
                 Dis[n, next_node.ID] = euclidean_dis(cus.coord, next_node.coord)
-                Dis[next_node.ID, n] = Dis[n, next_node.ID]
 
-        Dis[last_node.ID, next_node.ID] = Dis[next_node.ID, last_node.ID] = - max(Dis.values())
         # solve the TSP  to find the hamiltonian path
         Nodes = copy.copy(Clu.customers)
         Nodes[next_node.ID] = next_node
@@ -208,7 +203,7 @@ def DisAgg_Sequential(Data, M_path, TW_indicator=0):
             #Sequence, Current_time = TSPTW_model(Dis, Nodes, start_time)
             pass
         else:
-            Sequence, Current_time = TSP_Solver.solve(Dis, Nodes, start=last_node.ID, end=next_node.ID)
+            Sequence, Current_time = TSP_concorde(Dis, Nodes)
 
         # Update the total time
         if M_path[inx + 1] == "D0":
@@ -244,17 +239,17 @@ class aggregationScheme:
             self.reference_point = Gravity
         else:
             sys.exit("Invalid reference point option. \n Options: Centroid , Gravity")
-        if 0:
-            if cscost == "LB":
-                self.service_cost = LU_service_cost
-            elif cscost == "UB":
-                self.service_cost = None
-            elif cscost == "Combine":
-                self.service_cost = None
-            elif cscost == "SHC":
-                self.service_cost = Hamiltonian_cycle
-            else:
-                sys.exit("Invalid cluster service cost option. \n Options: LB, UB, Combine, SHC")
+
+        if cscost == "LB":
+            self.service_cost = LU_service_cost
+        elif cscost == "UB":
+            self.service_cost = None
+        elif cscost == "Combine":
+            self.service_cost = None
+        elif cscost == "SHC":
+            self.service_cost = Hamiltonian_cycle
+        else:
+            sys.exit("Invalid cluster service cost option. \n Options: LB, UB, Combine, SHC")
 
         if cstime == "LB":
             self.service_time = LU_service_cost

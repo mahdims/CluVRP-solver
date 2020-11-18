@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import Hexogonal
+from clustering import Hexogonal
 
 
 def Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time):

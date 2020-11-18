@@ -1,5 +1,5 @@
 import numpy as np
-from Hexogonal import Cluster
+from clustering import Hexogonal
 
 def convert_the_coordinates(x, y, x_origin, y_origin):
     longitude_conversion_coe = 65.0673235 	#KM
@@ -149,7 +149,7 @@ def read_clu_data(Path_2_file):
         if clu_flag:
             cus_list = line.split(" ")[1:]
             Id = int(cus_list[0])
-            new_cluster = Cluster(Id)
+            new_cluster = Hexogonal.Cluster(Id)
             for cus in cus_list[1:-1]:
                 if cus:
                     cus = int(cus)
