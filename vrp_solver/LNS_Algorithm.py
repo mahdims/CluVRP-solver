@@ -3,10 +3,12 @@ import random as rn
 import sys
 import pickle
 import copy
+import random
 import itertools as it
 import math
 from utils import read
 import os
+import numpy as np
 from collections import deque
 
 
@@ -412,19 +414,21 @@ def Regret_insertion(Data, tours, un_routed):
     return tours, unable_2_route
 
 
-def destroy(tours, unable_2_route, M=None):
+def destroy(tours, unable_2_route, weights, M=None):
 
     un_routed = unable_2_route[:]
     N_remove = math.ceil(0.3 * len(Tour.Data["Clusters"])) - len(un_routed)
 
-    rand_number = rn.random()
-    if rand_number < 0.6:
+    choices = ["shaw", "worst", "random"]
+    operator = roulette_wheel(choices, weights)
+
+    if operator == "shaw":
         destroyed_tours, un_routed = Shaw_removal(tours, un_routed, N_remove)
 
-    elif rand_number < 0.9:
+    elif operator == "worst":
         destroyed_tours, un_routed = Worst_removal(tours, un_routed, N_remove)
 
-    elif rand_number < 1:
+    elif operator == "random":
         destroyed_tours, un_routed = Random_removal(tours, un_routed, N_remove)
 
     inx = len(destroyed_tours) - 1
@@ -437,23 +441,23 @@ def destroy(tours, unable_2_route, M=None):
     if len(destroyed_tours) > M:
         destroyed_tours, un_routed = Route_removal(destroyed_tours, un_routed, M)
 
-    return destroyed_tours, un_routed
+    return destroyed_tours, un_routed, operator
 
 
-def repair(Data, tours, un_routed):
+def repair(Data, tours, un_routed, weights):
     M = Data["Vehicles"]
     while len(tours) < M and un_routed:
         tours, un_routed = create_new_route(M, tours, un_routed)
 
-
-    rand = rn.random()
-    if rand < 0.6:
+    choices = ["greedy", "regret"]
+    operator = roulette_wheel(choices, weights)
+    if operator == "greedy":
         tours, un_routed = Greedy_insertion(Data, tours, un_routed)
 
-    else:
+    elif operator == "regret":
         tours, un_routed = Regret_insertion(Data, tours, un_routed)
 
-    return tours, un_routed
+    return tours, un_routed, operator
 
 
 def feasibility_check(Data, tours, un_routed=[]):
@@ -467,7 +471,7 @@ def feasibility_check(Data, tours, un_routed=[]):
     if Data["Vehicles"] != 0:
         # print(len(tours))
         pass
-        # condition = condition and Data["Vehicles"] == len(tours)
+        condition = condition and Data["Vehicles"] == len(tours)
     if not condition:
         print("The number of vehicle is not meet")
     condition = len(all_nodes) + len(un_routed) == len(Data["Clusters"]) and condition
@@ -488,9 +492,42 @@ def accept(M, tours, un_routed, best_value, temperature):
     return flag
 
 
+def update_weights(weights, scores, use):
+    reaction_factor = 0.01
+    for opr in scores.keys():
+        if use[opr] != 0:
+            weights[opr] = (1-reaction_factor) * weights[opr] \
+                           + reaction_factor * scores[opr]/use[opr]
+
+        scores[opr] = 0
+        use[opr] = 0
+    return weights, scores, use
+
+
+def roulette_wheel(choices, weights):
+    bypass_adaptive = 0
+    fitness = np.array([weights[c] for c in choices])
+    total_fitness = sum(fitness)
+    fitness = fitness / total_fitness
+    if bypass_adaptive:
+        if "greedy" in choices:
+            fitness = [0.6, 0.3]
+        else:
+            fitness = [0.6, 0.3, 0.1]
+
+    r = random.random()
+    acc = 0
+    for inx, opr in enumerate(choices):
+        acc += fitness[inx]
+        if acc >= r:
+            break
+
+    return opr
+
+
 def LNS(Data, Dis):
     M = Data["Vehicles"]
-    # initial tours
+    # Initial tours
     Tour.Data = Data
     Dis["D0", "D0"] = 0
     Tour.Dis = Dis
@@ -514,84 +551,54 @@ def LNS(Data, Dis):
     best_value = sum(Dis.values())
     best_tour = [copy.deepcopy(t) for t in current_tours[:]]
 
+    # parameters to select the repair and destroy operators.
+    h_scores = {"greedy": 1, "regret": 1, "random": 1, "shaw": 1, "worst": 1}
+    h_weighs = {"greedy": 2, "regret": 1, "random": 1, "shaw": 6, "worst": 3}
+    h_used = {"greedy": 0, "regret": 0, "random": 0, "shaw": 0, "worst": 0}
+
     while counter < max_iter and no_improve < max_no_improve and time.time() < start + max_time:
         # print(f"The current route{current_tours}")
         current_tours = pickle.loads(pickle_tours)
-        destroyed_tours, un_routed = destroy(current_tours, current_unrouted, Data["Vehicles"])
-        new_tours, un_routed = repair(Data, destroyed_tours, un_routed)
-        # print(un_routed)
-
+        destroyed_tours, un_routed, destroy_opr = destroy(current_tours, current_unrouted, h_weighs, Data["Vehicles"])
+        new_tours, un_routed, repair_opr = repair(Data, destroyed_tours, un_routed, h_weighs)
+        # track the operator usage
+        h_used[destroy_opr] += 1
+        h_used[repair_opr] += 1
         counter += 1
+
         if accept(M, new_tours, un_routed, best_value, current_temp):
             pickle_tours = pickle.dumps(new_tours)
             current_unrouted = un_routed[:]
-            #print("Current is changed")
+            # update the score
+            h_scores[destroy_opr] += 20
+            h_scores[repair_opr] += 20
+            # print("Current is changed")
             current_value = sum([t.cost for t in new_tours])
-            if round(current_value,4) < round(best_value,4):
+            if round(current_value, 4) < round(best_value, 4):
                 best_tour = pickle.dumps(new_tours)
                 best_value = current_value + 10000 * (len(un_routed) + abs(len(new_tours) - M))
                 print(f"New_best: {best_value}")
                 no_improve = 0
+
+                h_scores[destroy_opr] += 30
+                h_scores[repair_opr] += 30
             else:
                 no_improve += 1
+
         else:
             no_improve += 1
+            h_scores[destroy_opr] += 5
+            h_scores[repair_opr] += 5
 
         current_temp = current_temp * cooling_rate
 
+        if counter % 50 == 0:
+            h_weighs, h_scores, h_used = update_weights( h_weighs, h_scores, h_used)
+
     best_tour = pickle.loads(best_tour)
+
     return best_value, best_tour
 
-
-def read_data(Path_2_file, M):
-    clean_data = {}
-    customers = {}
-    f = open(Path_2_file, "r")
-    lines = list(f)
-    depot_flag = 0
-    cus_flag = 0
-    demand_flag = 0
-    f.close()
-    for line in lines:
-        if "DIMENSION" in line:
-            N = int(line.split(":")[1])
-        elif "CAPACITY" in line:
-            Cap = int(line.split(":")[1])
-        elif "NODE_COORD_SECTION" in line:
-            depot_flag = 1
-            cus_flag = 1
-            continue
-        elif "DEMAND_SECTION" in line:
-            cus_flag = 0
-            demand_flag = 1
-            continue
-        elif "DEPOT_SECTION" in line:
-            clean_data["depot"] = depot
-            clean_data["Vehicles"] = M
-            clean_data["Aux_depot"] = Customer("D1", depot.coord, 0)
-            clean_data["Clusters"] = customers
-            clean_data["C"] = Cap
-
-            return clean_data
-
-        if depot_flag:
-            depot = [float(a) for a in line.split(" ")[1:]]
-            depot = Customer("D0", depot, 0)
-            depot_flag = 0
-            continue
-
-        if cus_flag:
-            Id, x, y = [float(a) for a in line.split(" ")]
-            customers[Id] = Customer(Id, (x, y), 0)
-
-        if demand_flag:
-            Id, d = [int(a) for a in line.split(" ")]
-            if Id != 1:
-                customers[Id].demand = d
-
-
-    #clean_data["X_range"] = x_range
-    #clean_data["Y_range"] = y_range
 
 def dist_matrix_calc(Data):
     dist_matrix = {}
@@ -613,28 +620,29 @@ def run_LNS(file_name=None, M=0):
     if not file_name:
         file_name = "P/P-n45-k5.vrp"
     Path_2_file = os.getcwd().replace("projection", "data") + "/" + file_name
-    data = read_data(Path_2_file, M)
+    data = read.read_vrp_data(Path_2_file, M)
     dis = dist_matrix_calc(data)
-
     best_value, best_tour = LNS(data, dis)
-
     print(f"Is the final solution feasible ? {feasibility_check(data, best_tour)}")
 
     for tour in best_tour:
         print(tour)
-    runtime = round(time.time() - start,2)
+    runtime = round(time.time() - start, 2)
+    # print(f"Best obj value : {sum([t.calc_cost() for t in best_tour])}")
     print(runtime)
-    return round(best_value,2), len(best_tour), runtime
+    return round(best_value, 2), len(best_tour), runtime
 
 import glob
 import pandas as pd
+
 if __name__ == "__main__":
     file_names = glob.glob("data/P/*.vrp")
     results = []
-    for file in ["data/P/P-n50-k10.vrp"]: # file_names:
+    for file in ["data/P/P-n76-k4.vrp"]: # file_names:
+        print(f"I am solving {file.split('/')[1]}")
         M = int(file.split("k")[1].split(".vrp")[0])
         results.append([file.replace("data/P/",""), *run_LNS(file, M)])
 
     df1 = pd.DataFrame(results,
                        columns=['Instance', 'Obj', 'Vehicles', 'Time'])
-    df1.to_csv("results.csv")
+    df1.to_csv("LNS_results.csv")

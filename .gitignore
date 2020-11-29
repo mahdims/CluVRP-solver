@@ -1,6 +1,9 @@
 *.res
 *.sol
-
+*.lp
+*.bas
+name.???
+Nname.????
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

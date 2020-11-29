@@ -75,14 +75,26 @@ def LU_service_cost(Data, clu):
     return int(Min_cost + sum([cus.service_time for cus in clu.customers.values()]))
 
 
+def Combination_service_cost(Data, clu):
+    if len(clu.customers) == 1:
+        return list(clu.customers.values())[0].service_time
+    elif len(clu.customers) == 2:
+        return clu.Dis[tuple(list(clu.customers.keys()))] + sum([cus.service_time for cus in clu.customers.values()])
+
+    Hamiltonian_paths = {}
+    for cus1, cus2 in it.combinations(clu.customers.keys(), 2):
+        _, HP_cost = TSP_Solver.solve(clu.Dis, Nodes=clu.customers, start=cus1, end=cus2)
+        Hamiltonian_paths[(cus1, cus2)] = HP_cost
+
+    MaxHp, Max_cost = max(Hamiltonian_paths.items(), key=lambda x: x[1])
+    MinHp, Min_cost = min(Hamiltonian_paths.items(), key=lambda x: x[1])
+
+    return int((Min_cost + Max_cost)/2 + sum([cus.service_time for cus in clu.customers.values()]))
+
+
 def Hamiltonian_cycle(Data, clu, TW_indicator=0):
-    # note the hamiltonian cycle starts from the depot and end at the depot therefore we needs to add distances
-    # Add the depot D0 and D1 to the distance matrix
     # calculate the hamiltonian cycle of the customers
     TSP_Nodes = copy.copy(clu.customers)
-    TSP_Nodes["D0"] = Data["depot"]
-    TSP_Nodes["D1"] = Data["depot"]
-    time_start = time.time()
     if TW_indicator:
         # clu.HC_sequence, clu.HC_cost = TSPTW_model(Dis, Nodes=TSP_Nodes, start_time=0)
         pass
@@ -91,11 +103,6 @@ def Hamiltonian_cycle(Data, clu, TW_indicator=0):
 
     if not clu.HC_sequence:
         sys.exit("Cluster %s is infeasible" % clu.ID)
-    else:
-        # print("We find the Hamiltonian cycle for cluster %s in %s sec" % (clu.ID, round(time.time()-time_start,3)))
-        clu.HC_sequence.remove("D0")
-        clu.HC_sequence.remove("D1")
-        clu.HC_cost = clu.HC_cost - clu.Dis[("D0", clu.HC_sequence[0])] - clu.Dis[(clu.HC_sequence[-1], "D1")]
 
     return int(clu.HC_cost + sum([cus.service_time for cus in clu.customers.values()]))
 
@@ -114,7 +121,7 @@ def Ref2Ref_inter_cluster(Data):
         else:
             ref2 = clu2.reference
 
-        clu_dis[clu1.ID, clu2.ID] = sqrt((ref1[0]-ref2[0])**2 + (ref1[1]-ref2[1])**2)
+        clu_dis[clu1.ID, clu2.ID] = euclidean_dis(ref1, ref2)
         clu_dis[clu2.ID, clu1.ID] = clu_dis[clu1.ID, clu2.ID]
     return clu_dis
 
@@ -261,7 +268,7 @@ class aggregationScheme:
         elif cstime == "UB":
             self.service_time = None
         elif cstime == "Combine":
-            self.service_time = None
+            self.service_time = Combination_service_cost
         elif cstime == "SHC":
             self.service_time = Hamiltonian_cycle
         else:
@@ -286,7 +293,7 @@ class aggregationScheme:
         elif entry_exit == "SHPs":
             self.entry_exit = "SHPs"
         else:
-            sys.exit("Invalid entry exit option")
+            sys.exit("Invalid entry exit option.  \n Options: Nearest, SHPs")
 
 
 def aggregation_pars(Data, Scheme):
@@ -294,7 +301,7 @@ def aggregation_pars(Data, Scheme):
     for clu in Data["Clusters"].values():
         clu.reference = Scheme.reference_point(clu.customers)
         clu.service_time = Scheme.service_time(Data, clu,)
-        clu.service_cost = Scheme.service_time(Data, clu,)
+        # clu.service_cost = Scheme.service_time(Data, clu,)
     return Data
 
 

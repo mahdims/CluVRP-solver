@@ -206,4 +206,51 @@ def read_the_data(Path_2_file, path_2_dis_mat=None):
 
 
 
+def read_vrp_data(Path_2_file, M):
+    clean_data = {}
+    customers = {}
+    f = open(Path_2_file, "r")
+    lines = list(f)
+    depot_flag = 0
+    cus_flag = 0
+    demand_flag = 0
+    f.close()
+    for line in lines:
+        if "DIMENSION" in line:
+            N = int(line.split(":")[1])
+        elif "CAPACITY" in line:
+            Cap = int(line.split(":")[1])
+        elif "NODE_COORD_SECTION" in line:
+            depot_flag = 1
+            cus_flag = 1
+            continue
+        elif "DEMAND_SECTION" in line:
+            cus_flag = 0
+            demand_flag = 1
+            continue
+        elif "DEPOT_SECTION" in line:
+            clean_data["depot"] = depot
+            clean_data["Vehicles"] = M
+            clean_data["Aux_depot"] = Customer("D1", depot.coord, 0)
+            clean_data["Clusters"] = customers
+            clean_data["C"] = Cap
+
+            return clean_data
+
+        if depot_flag:
+            depot = [float(a) for a in line.split(" ")[1:]]
+            depot = Customer("D0", depot, 0)
+            depot_flag = 0
+            continue
+
+        if cus_flag:
+            Id, x, y = [float(a) for a in line.split(" ")]
+            customers[Id] = Customer(Id, (x, y), 0)
+
+        if demand_flag:
+            Id, d = [int(a) for a in line.split(" ")]
+            if Id != 1:
+                customers[Id].demand = d
+
+
 

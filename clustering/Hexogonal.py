@@ -73,7 +73,7 @@ class Cluster:
 
 
 class Hexo:
-    trans_percentage = 0.3
+    trans_percentage = 1
 
     def __init__(self, orgin, r):
         self.ID = 0

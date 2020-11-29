@@ -102,17 +102,25 @@ def Route_correction(Sequence, start="D0", end="D1"):
 
 def LKH3(e_ttime, Gnodes):
 
+    edge_weights = []
+    for i in range(len(e_ttime)):
+        for j in range(i+1):
+            edge_weights.append(e_ttime.values[i,j])
+
     # Now we start to build the TSP_in file
     parsed_lines = []
-    parsed_lines.append("TYPE: ATSP \n"
+    parsed_lines.append("TYPE: TSP \n"
                         f"DIMENSION: {len(Gnodes)}\n"
                         "EDGE_WEIGHT_TYPE: EXPLICIT\n"
-                        "EDGE_WEIGHT_FORMAT: FULL_MATRIX\n" 
+                        "EDGE_WEIGHT_FORMAT: LOWER_DIAG_ROW\n" 
                         "EDGE_WEIGHT_SECTION\n")
+
     with open("./tsp_solver/LKH/TSP_in.txt", 'w') as out_file:
         out_file.writelines(parsed_lines)
-        e_ttime.to_csv(out_file, header=None, index=None, sep=' ', mode='a')
-        out_file.write("EOF")
+        for item in edge_weights:
+            out_file.write(f" {item}")
+        # e_ttime.to_csv(out_file, header=None, index=None, sep=' ', mode='a')
+        out_file.write("\nEOF")
 
     p = sub.Popen(["./tsp_solver/LKH/LKH", "./tsp_solver/LKH/pr.par"], stdout=sub.PIPE,
                   stderr=sub.PIPE, universal_newlines=True)
@@ -178,12 +186,14 @@ def solve(e_ttime, Nodes, start=None, end=None):
             return Gnodes, sum(sum(e_ttime.values))
 
     # Make the distances integer
-    e_ttime = 10000 * e_ttime
+    e_ttime = 10 * e_ttime
     e_ttime = e_ttime.astype("int32")
 
+    objval = "Fail"
     # select the TSP solver
     if 1:
-        route, objval = Other_TSP_solvers.TSP_concorde(e_ttime, Gnodes)
+
+        # route, objval = Other_TSP_solvers.TSP_concorde(e_ttime, Gnodes)
 
         if objval == "Fail":
             # the LKH3 should be downloaded, make and placed in LKH folder
@@ -195,7 +205,8 @@ def solve(e_ttime, Nodes, start=None, end=None):
         # Independent implementation of 2-opt
         route, objval = two_opt_Alg(e_ttime, Nodes,)
 
-    objval = objval / 10000
+
+    objval = objval / 10
 
     if end:
         # we are in dis aggregation that solves TSP to find hamiltonian paths

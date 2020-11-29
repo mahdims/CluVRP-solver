@@ -146,7 +146,7 @@ def TSP_model(e_ttime, Nodes, start=None, end=None):
 def TSP_concorde(e_ttime, Gnodes):
 
     solver = TSPSolver.from_matrix(e_ttime.values)
-    tour_data = solver.solve(time_bound=150, silent=10)
+    tour_data = solver.solve(time_bound=5, silent=10)
 
     if not tour_data.success:
         print("Concorde failed")
