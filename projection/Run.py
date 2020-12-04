@@ -1,19 +1,18 @@
 import sys
-sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
-
 import os
 import sys
 import time
 import getopt
-import math
-import itertools as it
+import glob
+import pandas as pd
+sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
+
 from utils import read
 from utils import Distance
 from clustering import Clustering
 from Aggregation import aggregationScheme, aggregation
 from vrp_solver import LNS_Algorithm, Naive_LNS_Algorithm
 from utils import Plots
-
 
 
 def obj_calc(dist, routes):
@@ -25,6 +24,7 @@ def obj_calc(dist, routes):
             pre_cus = cus
 
     return cost
+
 
 def get_files_name(arg, file_name):
     # This function will get the arg and return the path to instance files and distance matrix if specified
@@ -57,7 +57,6 @@ def get_files_name(arg, file_name):
     return path_2_instance
 
 
-
 def run_aggregation_disaggregation(arg, filename):
 
     path_2_instance = get_files_name(arg, filename)
@@ -72,10 +71,10 @@ def run_aggregation_disaggregation(arg, filename):
     else:
         for clu in Data["Clusters"].values():
             clu.cluster_dis_matrix(Data["Full_dis"])
-            clu.Create_transSet(Data["Full_dis"], Data["Clusters"])
+            clu.Create_transSet(Data["Full_dis"], Data["Clusters"], trans_percentage)
 
     # Create the aggregation scheme
-    agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="Combine", inter="Ref2Ref",
+    agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="SHC", inter="Ref2Ref",
                                    disAgg="OneTsp", entry_exit="Nearest")
     # Aggregation
     Data, clu_dis = aggregation(Data, agg_scheme)
@@ -110,21 +109,19 @@ def run_aggregation_disaggregation(arg, filename):
     return len(Master_route), Total_Cost, Run_time
 
 
-import glob
-import pandas as pd
-
 if __name__ == "__main__":
     # run_aggregation_disaggregation(sys.argv[1:])
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
     number_runs = 8
-    for file in file_names: # ["data/Clu/Golden/Golden_1-C17-N241.gvrp"]: #
+    for file in file_names: #["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #
         # M = int(file.split("k")[1].split(".vrp")[0])
         real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-")
 
         BestObj = 1000000000
         Total_time = 0
         Total_obj = 0
+        trans_percentage = 0.7 #0.5 0.3 0.1
 
         for run in range(number_runs):
             Vehicle, Obj, Run_time = run_aggregation_disaggregation(None, file)
@@ -134,9 +131,8 @@ if __name__ == "__main__":
             Total_obj += Obj
             Total_time += Run_time
 
-        results.append(real_name + [Vehicle, BestObj, round(Total_obj/number_runs, 4),
-                                    round(Total_time/number_runs, 4)])
+        results.append(real_name + [Vehicle, BestObj, round(Total_obj/number_runs, 4),round(Total_time/number_runs, 4)])
 
     df1 = pd.DataFrame(results,
                        columns=["Name", "N", "M", "K", 'Best.Obj', "Avg.Obj",'Avg.Time'])
-    df1.to_csv("Aggresults_Golden_AS5.csv")
+    df1.to_csv("Results_Li_AS1.csv")

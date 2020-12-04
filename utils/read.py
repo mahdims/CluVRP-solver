@@ -1,6 +1,7 @@
 import numpy as np
 from clustering import Hexogonal
 
+
 def convert_the_coordinates(x, y, x_origin, y_origin):
     longitude_conversion_coe = 65.0673235 	#KM
     latitude_conversion_coe = 111.206094  #KM
@@ -34,7 +35,7 @@ class Customer:
         self.demand = d
         self.TW = TW
         self.service_time = ST
-        self.clu_id = 0
+        self.clu_id = "D0"
 
 
 def read_Li_data(Path_2_file):
@@ -194,6 +195,7 @@ def read_the_data(Path_2_file, path_2_dis_mat=None):
         clean_data["Full_dis"] = Full_dis
         clean_data["Full_consump"] = Full_consump
 
+    clean_data["Instance_name"] = Path_2_file.split(".")[0].split("/")[-1]
     clean_data["depot"] = depot
     clean_data["Vehicles"] = M
     clean_data["Aux_depot"] = Customer("D1", depot.coord, 0)
@@ -203,7 +205,6 @@ def read_the_data(Path_2_file, path_2_dis_mat=None):
     clean_data["Y_range"] = y_range
 
     return clean_data
-
 
 
 def read_vrp_data(Path_2_file, M):

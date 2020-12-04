@@ -189,7 +189,7 @@ def Random_removal(destroyed_tours, un_routed, N_remove):
 def Route_removal(destroyed_tours, un_routed, M):
     if M:
         while len(destroyed_tours) > M:
-            inx = rn.randint(0, len(destroyed_tours))
+            inx = rn.randint(0, len(destroyed_tours)-1)
             un_routed += destroyed_tours[inx].without_depot()
             del destroyed_tours[inx]
 

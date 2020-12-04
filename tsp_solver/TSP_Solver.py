@@ -4,6 +4,7 @@ import subprocess as sub
 import pandas as pd
 from tsp_solver import Other_TSP_solvers
 
+
 def nearest_neighbor(dist_matrix, nodes, start=None):
     # Create a customer sequence by Nearest Neighbor algorithm
     # If  the start is given then the first node in the sequence would be start /
@@ -162,7 +163,6 @@ def solve(e_ttime, Nodes, start=None, end=None):
                 np_ttime[Gnodes.index(j), inx1] = np_ttime[inx1, Gnodes.index(j)]
 
     e_ttime = pd.DataFrame(np_ttime, index=Gnodes, columns=Gnodes)
-
     # route that do not need a tsp to be solved
     if end:
 
@@ -193,7 +193,7 @@ def solve(e_ttime, Nodes, start=None, end=None):
     # select the TSP solver
     if 1:
 
-        # route, objval = Other_TSP_solvers.TSP_concorde(e_ttime, Gnodes)
+        route, objval = Other_TSP_solvers.TSP_concorde(e_ttime, Gnodes)
 
         if objval == "Fail":
             # the LKH3 should be downloaded, make and placed in LKH folder

@@ -1,17 +1,19 @@
-import subprocess as sub
+import sys
+sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
+
 import os
 import sys
 import time
 import getopt
 import math
 import itertools as it
-from read import read_the_data
-from Clustering import Honeycomb_Clustering
+from utils import read
+from utils import Distance
+from clustering import Clustering
 from Aggregation import aggregationScheme, aggregation
-from Write_files import Write_AggInstance, Write_AggDis_mat
-from VRP_Exact_Solver import VRP_Model_SC, VRP_Model_2CF
-from LNS_Algorithm import LNS
-from Plots import Draw_on_a_plane
+from vrp_solver import LNS_Algorithm, Naive_LNS_Algorithm
+from utils import Plots
+
 
 def obj_calc(dist, routes):
     cost = 0
@@ -54,82 +56,77 @@ def get_files_name(arg, file_name):
     return path_2_instance
 
 
-def euclidean_dis(A, B):
-    return math.sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
-
-
-def build_distance_matrix(depot, customers):
-    distance = {}
-    for cust1, cust2 in it.combinations(customers.values(), 2):
-        distance[cust1.ID, cust2.ID] = euclidean_dis(cust1.coord, cust2.coord)
-        distance[cust2.ID, cust1.ID] = distance[cust1.ID, cust2.ID]
-    for a in customers.values():
-        distance[("D0", a.ID)] = euclidean_dis(depot.coord, a.coord)
-        distance[(a.ID, "D1")] = distance[("D0", a.ID)]
-    distance[("D0", "D1")] = distance[("D1", "D0")] = 0
-    return distance
-
 
 def run_aggregation_disaggregation(arg, filename):
 
     path_2_instance = get_files_name(arg, filename)
     Timer_start = time.time()
     # read the data from  the text file
-    Data = read_the_data(path_2_instance)
+    Data = read.read_the_data(path_2_instance)
     # Create the full distance matrix
-    Data["Full_dis"] = build_distance_matrix(Data["depot"], Data["Customers"])
+    Data["Full_dis"] = Distance.build_distance_matrix(Data["depot"], Data["Customers"])
     if not Data["Clusters"]:
         # Implement the honeycomb clustering
-        Data = Honeycomb_Clustering(Data)
+        Data = Clustering.Honeycomb_Clustering(Data)
     else:
         for clu in Data["Clusters"].values():
             clu.cluster_dis_matrix(Data["Full_dis"])
             clu.Create_transSet(Data["Full_dis"], Data["Clusters"])
 
-    # Create the aggregation scheme
-    agg_scheme = aggregationScheme(ref="Centroid", cscost="LB", cstime="SHC", inter="Nearest",
-                                   disAgg="OneTsp", entry_exit="SHPs")
     # Aggregation
-    Data, clu_dis = aggregation(Data, agg_scheme)
-    # compute and write the aggregated distance/consumption file for VRP solver
-    # path_2_dis_mat = Write_AggDis_mat(Data, path_2_instance, clu_dis)
-    # write the aggregated input file for VRP solver
-    # path_2_instance = Write_AggInstance(path_2_instance, Data)
+    Data, clu_dis = aggregation(Data)
 
     # Run the VRP solver
     # objVal, Master_route = VRP_Model_SC(Data, clu_dis)
-    objVal, Master_route = LNS(Data, clu_dis)
+    objVal, Master_route = LNS_Algorithm.LNS(Data, clu_dis)
+    #objVal, Master_route = Naive_LNS_Algorithm.LNS(Data, clu_dis)
 
     # Dis-aggregation
     Real_tours = []
     Total_Cost = 0
     for route in Master_route:
-        Tour, Cost = agg_scheme.dis_aggregation(Data, route)
+        Tour, Cost = dis_aggregation(Data, route)
         Real_tours.append([Cost, Tour])
         Total_Cost += Cost
 
     Run_time = time.time() - Timer_start
     print(f"Total cost = {Total_Cost}")
     print(obj_calc(Data["Full_dis"], Real_tours))
+    Total_Cost = obj_calc(Data["Full_dis"], Real_tours)
     print(f"Runtime = {Run_time}")
     print(f"Number of vehicles = {len(Master_route)}")
     # Draw the final tours all together
-    # Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
+    # Plots.Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
     # save the CUSTOMERS SEQUENCE
     # save_the_customers_sequence(CWD,file_name, Real_tours,Total_Cost,Run_time )
-    return Total_Cost, len(Master_route), Run_time
+    return len(Master_route), Total_Cost, Run_time
 
 
 import glob
 import pandas as pd
+
 if __name__ == "__main__":
-    # run_aggregation_disaggregation(sys.argv[1:])
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
-    for file in file_names:
+    number_runs = 1
+    for file in ["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #file_names:
         # M = int(file.split("k")[1].split(".vrp")[0])
-        results.append([file.replace("data/Clu/Golden/",""), *run_aggregation_disaggregation(None, file)])
+        real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-")
+
+        BestObj = 1000000000
+        Total_time = 0
+        Total_obj = 0
+
+        for run in range(number_runs):
+            Vehicle, Obj, Run_time = run_aggregation_disaggregation(None, file)
+            if Obj < BestObj:
+                BestObj = Obj
+
+            Total_obj += Obj
+            Total_time += Run_time
+
+        results.append(real_name + [Vehicle, BestObj, round(Total_obj/number_runs, 4),round(Total_time/number_runs, 4)])
 
     df1 = pd.DataFrame(results,
-                       columns=['Instance', 'Obj', 'Vehicles', 'Time'])
-    df1.to_csv("Aggresults2.csv")
+                       columns=["Name", "N", "M", "K", 'Best.Obj', "Avg.Obj",'Avg.Time'])
+    df1.to_csv("Results_Li_AS1.csv")

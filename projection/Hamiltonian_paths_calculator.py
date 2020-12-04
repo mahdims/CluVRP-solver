@@ -1,6 +1,7 @@
 import sys
 import os
 import time
+import pandas as pd
 import itertools as it
 sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
 from clustering import Clustering
@@ -46,6 +47,14 @@ def calc_all_SHP(clu):
     return Hamiltonian_paths
 
 
+def pickle_dump(obj, name):
+    file = open(name, 'wb')
+    # dump information to that file
+    pickle.dump(obj, file)
+    # close the file
+    file.close()
+
+
 def file_SHPs(Data, filename):
 
     all_SHPs = {}
@@ -53,19 +62,27 @@ def file_SHPs(Data, filename):
     for clu in Data["Clusters"].values():
         all_SHPs[clu.ID] = calc_all_SHP(clu)
 
-    file = open(f"./data/Clu/SHPs/{filename}", 'wb')
-    # dump information to that file
-    pickle.dump(all_SHPs, file)
-    # close the file
-    file.close()
-    print(f"I dumped the Hamiltonian paths for {filename}")
+    print("------------------I escape the saving the results ---------------------")
+    # pickle_dump(all_SHPs, f"./data/Clu/SHPs/{filename}")
 
+    # print(f"I dumped the Hamiltonian paths for {filename}")
 
 
 if __name__ == "__main__":
 
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
+    run_times = []
     for file in file_names:
         real_name = file.split(".")[0].split("/")[-1]
+        start = time.time()
         Data = initialization(file)
         file_SHPs(Data, real_name)
+        exe_time = time.time() - start
+        real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-")
+        run_times.append(real_name + [round(exe_time, 4)])
+        pickle_dump(run_times, "./data/Clu/SHPs/runtimes")
+    df1 = pd.DataFrame(run_times,
+                           columns=["Name", "M", "N", 'Pre_time'])
+    df1.to_csv("./data/Clu/SHPs/Preprocessing_time.csv")
+
+

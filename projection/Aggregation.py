@@ -1,5 +1,5 @@
 import numpy as np
-import time
+import pickle
 import copy
 import sys
 import itertools as it
@@ -29,7 +29,7 @@ def Gravity(customers):
     return reference
 
 
-def LU_service_cost(Data, clu):
+def LU_service_cost_from_scratch(Data, clu):
     if len(clu.customers) == 1:
         return list(clu.customers.values())[0].service_time
     elif len(clu.customers) == 2:
@@ -75,21 +75,30 @@ def LU_service_cost(Data, clu):
     return int(Min_cost + sum([cus.service_time for cus in clu.customers.values()]))
 
 
-def Combination_service_cost(Data, clu):
-    if len(clu.customers) == 1:
-        return list(clu.customers.values())[0].service_time
-    elif len(clu.customers) == 2:
-        return clu.Dis[tuple(list(clu.customers.keys()))] + sum([cus.service_time for cus in clu.customers.values()])
+def LU_service_cost(Data, clu):
+    file_obj = open("./data/Clu/SHPs/%s" % Data["Instance_name"], 'rb')
+    All_SHPs = pickle.load(file_obj)
+    file_obj.close()
+    Hamiltonian_paths = All_SHPs[clu.ID]
+    if len(Hamiltonian_paths) == 1:
+        return list(Hamiltonian_paths.values())[0]
 
-    Hamiltonian_paths = {}
-    for cus1, cus2 in it.combinations(clu.customers.keys(), 2):
-        _, HP_cost = TSP_Solver.solve(clu.Dis, Nodes=clu.customers, start=cus1, end=cus2)
-        Hamiltonian_paths[(cus1, cus2)] = HP_cost
+    MinHp, Min_cost = min(Hamiltonian_paths.items(), key=lambda x: x[1])
+    return Min_cost
+
+
+def Combination_service_cost(Data, clu):
+    file_obj = open("./data/Clu/SHPs/%s" % Data["Instance_name"], 'rb')
+    All_SHPs = pickle.load(file_obj)
+    file_obj.close()
+    Hamiltonian_paths = All_SHPs[clu.ID]
+    if len(Hamiltonian_paths) == 1:
+        return list(Hamiltonian_paths.values())[0]
 
     MaxHp, Max_cost = max(Hamiltonian_paths.items(), key=lambda x: x[1])
     MinHp, Min_cost = min(Hamiltonian_paths.items(), key=lambda x: x[1])
 
-    return int((Min_cost + Max_cost)/2 + sum([cus.service_time for cus in clu.customers.values()]))
+    return (Min_cost + Max_cost)/2
 
 
 def Hamiltonian_cycle(Data, clu, TW_indicator=0):
@@ -103,7 +112,6 @@ def Hamiltonian_cycle(Data, clu, TW_indicator=0):
 
     if not clu.HC_sequence:
         sys.exit("Cluster %s is infeasible" % clu.ID)
-
     return int(clu.HC_cost + sum([cus.service_time for cus in clu.customers.values()]))
 
 
@@ -155,7 +163,7 @@ def nearest_inter_cluster(Data):
 def DisAgg_HC(Data, M_path, TW_indicator=0):
     BigM = 2 * max(Data["Full_dis"].values())
     Clusters = Data["Clusters"]
-    Nodes_pool = {"D0": Data["depot"] }
+    Nodes_pool = {"D0": Data["depot"]}
     Dis = {}
     # Build the node pool
     for inx, clu_ID in enumerate(M_path[1:-1]):
@@ -166,10 +174,21 @@ def DisAgg_HC(Data, M_path, TW_indicator=0):
     Nodes_pool["D1"] = Data["Aux_depot"]
     # Build the distance matrix
     for node1, node2 in it.combinations(Nodes_pool.values(), 2):
+
         Dis[node1.ID, node2.ID] = Data["Full_dis"][node1.ID, node2.ID] + BigM * (node1.clu_id != node2.clu_id)
+        # Add penalty for using customers outside the transaction-set
+        if node1.ID != "D0" and node1.clu_id != node2.clu_id:
+            if node1.ID not in Clusters[node1.clu_id].trans_nodes[node2.clu_id]:
+                Dis[node1.ID, node2.ID] += BigM
+
+        if node1.ID == "D0" and node2.ID != "D1":
+            if node2.ID not in Clusters[node2.clu_id].trans_nodes[node1.clu_id]:
+                Dis[node1.ID, node2.ID] += BigM
+
         Dis[node2.ID, node1.ID] = Dis[node1.ID, node2.ID]
 
     Sequence, Total_Cost = TSP_Solver.solve(Dis, Nodes=Nodes_pool, start="D0", end="D1")
+
     return Sequence, Total_Cost - BigM * (len(M_path) - 1)
 
 

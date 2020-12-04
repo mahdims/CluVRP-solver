@@ -2,7 +2,6 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 import math
-# from Redefine_the_clusters import redefine_the_clusters
 
 
 def Calculate_time_distance(Data, Cust1, Cust2):
@@ -85,6 +84,7 @@ def cluster_analysis(Data, clusters):
     draw_the_honeycomb(Data, clusters)
     exit()
 
+
 def draw_the_honeycomb(Data, clusters):
     X_range = Data["X_range"]
     Y_range = Data["Y_range"]
@@ -100,8 +100,6 @@ def draw_the_honeycomb(Data, clusters):
         ax.text(*cluster.org, s=key, fontsize=12)
     plt.show()
 
-
-from clustering import Hexogonal
 
 def create_the_clusters(Data, r):
     Data["Clusters"] = {}

@@ -25,9 +25,9 @@ def cluster_matrix(self, Full_dis):
     return Dis
 
 
-def transSet(self, dis, clusters):
+def transSet(self, dis, clusters, trans_percentage):
     transSet = {}
-    N = ceil(len(self.customers) * Hexo.trans_percentage)
+    N = ceil(len(self.customers) * trans_percentage)
     for clu in clusters.values():
         if clu.ID != self.ID:
             cust_inx = it.product(list(self.customers.keys()), list(clu.customers.keys()))
@@ -65,8 +65,8 @@ class Cluster:
     def cluster_dis_matrix(self, Full_dis):
         self.Dis = cluster_matrix(self, Full_dis)
 
-    def Create_transSet(self, dis, clusters):
-        self.trans_nodes = transSet(self, dis, clusters)
+    def Create_transSet(self, dis, clusters, trans_percentage=1):
+        self.trans_nodes = transSet(self, dis, clusters, trans_percentage)
 
     def Is_node_here(self, ID):
         return ID in self.customers.keys()
