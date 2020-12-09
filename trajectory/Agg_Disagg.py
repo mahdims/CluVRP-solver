@@ -8,7 +8,7 @@ from utils import read
 from tsp_solver import TSP_Solver
 
 
-def euclidean_dis(A,B):
+def euclidean_dis(A, B):
     return sqrt((A[0] - B[0])**2 + (A[1] - B[1])**2)
 
 
@@ -25,6 +25,19 @@ def service_time(Data, clu,):
     return sum([Data["Customers"][cus].service_time for cus in clu.customers.keys()])
 
 
+def nearest_cus(point, clu):
+    # This function finds the nearest customer to the reference point of next or previous cluster
+    min_dis = 1000000000000
+    for cus in clu.customers.values():
+        c_dis = euclidean_dis(point, cus.coord)
+        if c_dis < min_dis:
+            min_dis = c_dis
+            near_cus = cus.ID
+
+    # TODO find the nearest customer in the other cluster to calculate the distance correctly.
+    return near_cus, min_dis
+
+
 def inter_distance(Data):
 
     # Read the hamiltonian path data for the instance
@@ -34,30 +47,29 @@ def inter_distance(Data):
     # For each cluster select the
     clu_dis = {}
     for clu in Data["Clusters"].values():
-        Clusters = set(list(Data["Clusters"].values()) + [Data["depot"]]) - set(clu)
+        Clusters = set(list(Data["Clusters"].values()) + [Data["depot"]]) - set([clu])
         Hamiltonian_paths = All_SHPs[clu.ID]
         clu_dis[clu.ID] = {}
         if len(Hamiltonian_paths) == 1:
-            return list(Hamiltonian_paths.values())[0]
+            key = list(Hamiltonian_paths.keys())[0]
+            val = list(Hamiltonian_paths.values())[0]
+            clu_dis[clu.ID]["E","E"] = (key, val)
 
-        for clu1, clu2 in it.combinations(Clusters, 2):
-            if clu1.ID == "D0":
-                ref1 = clu1.coord
-            else:
-                ref1 = clu1.reference
-
-            if clu2.ID == "D0":
-                ref2 = clu2.coord
-            else:
-                ref2 = clu2.reference
-
-            clu_dis[clu1.ID, clu2.ID] = euclidean_dis(ref1, ref2)
-            clu_dis[clu2.ID, clu1.ID] = clu_dis[clu1.ID, clu2.ID]
-
+    for clu1, clu2 in it.combinations(Clusters, 2):
+        if clu1.ID == "D0":
+            ref1 = clu1.coord
+        if clu2.ID == "D0":
+            ref2 = clu2.coord
+        else:
+            ref2 = clu2.reference
+        start, pre_dis = nearest_cus(clu1.reference, clu)
+        end, next_dis = nearest_cus(clu2.reference, clu)
+        clu_dis[clu.ID][clu1.ID, clu2.ID] = [(start, end), pre_dis + Hamiltonian_paths[(start, end)]]
+        clu_dis[clu.ID][clu2.ID, clu1.ID] = [(end, start), Hamiltonian_paths[(end, start)] + next_dis]
     return clu_dis
 
 
-def DisAgg_Sequential(Data, M_path, TW_indicator=0):
+def dis_aggregation(Data, M_path, TW_indicator=0):
     Clusters = Data["Clusters"]
     real_path = []
     Total_time = 0

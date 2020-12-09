@@ -10,7 +10,7 @@ import itertools as it
 from utils import read
 from utils import Distance
 from clustering import Clustering
-from Aggregation import aggregationScheme, aggregation
+import Agg_Disagg
 from vrp_solver import LNS_Algorithm, Naive_LNS_Algorithm
 from utils import Plots
 
@@ -56,7 +56,6 @@ def get_files_name(arg, file_name):
     return path_2_instance
 
 
-
 def run_aggregation_disaggregation(arg, filename):
 
     path_2_instance = get_files_name(arg, filename)
@@ -74,7 +73,7 @@ def run_aggregation_disaggregation(arg, filename):
             clu.Create_transSet(Data["Full_dis"], Data["Clusters"])
 
     # Aggregation
-    Data, clu_dis = aggregation(Data)
+    Data, clu_dis = Agg_Disagg.aggregation(Data)
 
     # Run the VRP solver
     # objVal, Master_route = VRP_Model_SC(Data, clu_dis)
@@ -85,7 +84,7 @@ def run_aggregation_disaggregation(arg, filename):
     Real_tours = []
     Total_Cost = 0
     for route in Master_route:
-        Tour, Cost = dis_aggregation(Data, route)
+        Tour, Cost = Agg_Disagg.dis_aggregation(Data, route)
         Real_tours.append([Cost, Tour])
         Total_Cost += Cost
 
@@ -109,7 +108,7 @@ if __name__ == "__main__":
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
     number_runs = 1
-    for file in ["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #file_names:
+    for file in file_names[2:3]:
         # M = int(file.split("k")[1].split(".vrp")[0])
         real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-")
 
