@@ -98,7 +98,7 @@ def read_Arnold_data(Path_2_file):
         demand = int(customers_demand[line_inx].split("\t")[1])
         customers[Id] = Customer(Id, (x,y), demand)
 
-    return depot, Cap, customers
+    return 0, depot, Cap, customers
 
 
 def read_clu_data(Path_2_file):
@@ -173,7 +173,7 @@ def read_the_data(Path_2_file, path_2_dis_mat=None):
         clean_data["Clusters"] = clusters
     else:
         if "Arnold" in Path_2_file:
-            depot, Cap, customers = read_Arnold_data(Path_2_file)
+            M, depot, Cap, customers = read_Arnold_data(Path_2_file)
         elif"Li" in Path_2_file:
             depot, Cap, customers = read_Li_data(Path_2_file)
 

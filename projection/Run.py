@@ -4,10 +4,11 @@ import sys
 import time
 import getopt
 import glob
+import math
 import pandas as pd
 sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
 
-from utils import read
+from utils import read, write
 from utils import Distance
 from clustering import Clustering
 from Aggregation import aggregationScheme, aggregation
@@ -114,25 +115,33 @@ if __name__ == "__main__":
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
     number_runs = 8
-    for file in file_names: #["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #
+    for file in file_names: # ["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #
         # M = int(file.split("k")[1].split(".vrp")[0])
-        real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-")
+        real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-") # Goldden
+        # real_name = file.split("/")[-1].replace(".vrp", "").split("-")[:-1] # Li
+        # Only run the ones that have 15 customers in a clusters . This is to test the K-nearest
+        if math.ceil(int(real_name[2]) / int(real_name[1])) != 15:
+            continue
 
-        BestObj = 1000000000
-        Total_time = 0
-        Total_obj = 0
-        trans_percentage = 0.7 #0.5 0.3 0.1
+        for trans_percentage in [0.7, 0.5, 0.3, 0.1]:
+            BestObj = 1000000000
+            Total_time = 0
+            Total_obj = 0
+            for run in range(number_runs):
+                Vehicle, Obj, Run_time = run_aggregation_disaggregation(None, file)
+                if Obj < BestObj:
+                    BestObj = Obj
 
-        for run in range(number_runs):
-            Vehicle, Obj, Run_time = run_aggregation_disaggregation(None, file)
-            if Obj < BestObj:
-                BestObj = Obj
+                Total_obj += Obj
+                Total_time += Run_time
 
-            Total_obj += Obj
-            Total_time += Run_time
+            results.append(real_name + [Vehicle, str(trans_percentage)] +
+                           [str(BestObj), round(Total_obj/number_runs, 4), round(Total_time/number_runs, 4)])
 
-        results.append(real_name + [Vehicle, BestObj, round(Total_obj/number_runs, 4),round(Total_time/number_runs, 4)])
+            write.pickle_dump(results, "./lowerbound/projection_knearest")
 
     df1 = pd.DataFrame(results,
-                       columns=["Name", "N", "M", "K", 'Best.Obj', "Avg.Obj",'Avg.Time'])
-    df1.to_csv("Results_Li_AS1.csv")
+                           columns=["Name", "N", "M", "K", 'k-nearest', 'Best.Obj', "Avg.Obj", 'Avg.Time'])
+    df1.to_csv("data/Results_AS1_K-nearest.csv")
+
+

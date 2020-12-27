@@ -39,7 +39,7 @@ def transSet(self, dis, clusters, trans_percentage):
                 if node not in transSet[clu.ID]:
                     transSet[clu.ID].append(node)
     # find the nodes that connect this cluster to the depot
-    cust_inx = it.product(["D0"],list(self.customers.keys()))
+    cust_inx = it.product(["D0"], list(self.customers.keys()))
     inter_dis = {key: dis[key] for key in cust_inx}
     inter_dis = sorted(inter_dis.items(), key=lambda x: x[1])
     transSet["D0"] = [node for (_, node), _ in inter_dis[:N]]

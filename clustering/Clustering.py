@@ -73,7 +73,7 @@ def find_neighbors(Data, d,new_hex, count, indic, position):
 
 
 def cluster_analysis(Data, clusters):
-    N_cus= []
+    N_cus = []
     Clu_demand = []
     for clu in clusters.values():
         N_cus.append(len(clu.customers))

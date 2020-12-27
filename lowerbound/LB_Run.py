@@ -1,11 +1,9 @@
-import sys
 import os
 import sys
 import time
 import getopt
 import glob
 import pandas as pd
-import pickle
 
 sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
 
@@ -14,6 +12,7 @@ from utils import Distance
 from clustering import Clustering
 from Aggregation import aggregationScheme, aggregation
 from vrp_solver import VRP_Exact_Solver
+from utils import write
 from vrp_solver import LNS_Algorithm, Naive_LNS_Algorithm
 from utils import Plots
 
@@ -60,12 +59,8 @@ def get_files_name(arg, file_name):
     return path_2_instance
 
 
-def pickle_dump(obj, name):
-    file1 = open(name, 'wb')
-    # dump information to that file
-    pickle.dump(obj, file1)
-    # close the file
-    file1.close()
+
+
 
 def run_aggregation_LB(arg, filename):
 
@@ -96,7 +91,7 @@ def run_aggregation_LB(arg, filename):
     # Run the VRP solver
     objVal, Master_route = VRP_Exact_Solver.VRP_Model_SC(Data, clu_dis)
     # objVal, Master_route = LNS_Algorithm.LNS(Data, clu_dis)
-    #objVal, Master_route = Naive_LNS_Algorithm.LNS(Data, clu_dis)
+    # objVal, Master_route = Naive_LNS_Algorithm.LNS(Data, clu_dis)
 
     Run_time = time.time() - Timer_start
     print(f"Total cost = {objVal}")
@@ -122,7 +117,7 @@ if __name__ == "__main__":
         BestObj = 1000000000
         Total_time = 0
         Total_obj = 0
-        trans_percentage = 1 # 0.7 #0.5 0.3 0.1
+        trans_percentage = 1 # 0.7 0.5 0.3 0.1
 
         for run in range(number_runs):
             Vehicle, Obj, Run_time = run_aggregation_LB(None, file)
@@ -134,7 +129,7 @@ if __name__ == "__main__":
 
         results.append(real_name + [Vehicle, Obj, Run_time]) # round(Total_obj/number_runs, 4),round(Total_time/number_runs, 4)])
 
-        pickle_dump(results, "./lowerbound/LBs")
+        write.pickle_dump(results, "./lowerbound/LBs")
 
     df1 = pd.DataFrame(results,
                        columns=["Name", "N", "M", "K", 'LowerBound', 'Time'])

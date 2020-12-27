@@ -121,7 +121,7 @@ def VRP_Model_SC(Data, Dis):
 
     # SF_MIP.Params.OutputFlag = 0
     # SF_MIP.write("IPmodel.lp")
-    SF_MIP.params.TimeLimit = 150
+    SF_MIP.params.TimeLimit = 1500
     SF_MIP.params.MIPGap = 0.001
     SF_MIP.optimize()
 
