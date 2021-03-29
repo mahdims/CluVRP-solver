@@ -113,6 +113,7 @@ def VRP_Model_SC(Data, Dis):
     f = SF_MIP.addVars(complement, lb=0, name="f")
 
     SF_MIP.setObjective(quicksum((Dis[i, j] + Service_time[i]) * x[i, j] for i, j in x.keys()))
+    SF_MIP.addConstr(quicksum(x.select('D0', '*')) == Data["Vehicles"])
     SF_MIP.addConstrs(quicksum(x.select(i, '*')) == 1 for i in V_c)
     SF_MIP.addConstrs(quicksum(x.select('*',i)) == 1 for i in V_c)
     SF_MIP.addConstrs(quicksum(f.select('*', i)) - quicksum(f.select(i, '*')) == Data["Clusters"][i].demand for i in V_c)
@@ -121,7 +122,7 @@ def VRP_Model_SC(Data, Dis):
 
     # SF_MIP.Params.OutputFlag = 0
     # SF_MIP.write("IPmodel.lp")
-    SF_MIP.params.TimeLimit = 1500
+    SF_MIP.params.TimeLimit = 1000 #7200
     SF_MIP.params.MIPGap = 0.001
     SF_MIP.optimize()
 

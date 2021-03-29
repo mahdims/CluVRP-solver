@@ -60,8 +60,6 @@ def get_files_name(arg, file_name):
 
 
 
-
-
 def run_aggregation_LB(arg, filename):
 
     path_2_instance = get_files_name(arg, filename)
@@ -111,6 +109,71 @@ if __name__ == "__main__":
     file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
     number_runs = 1
+    '''
+    file_names = \
+        '\t\tGolden_1	C	17	N	241	\n	'\
+    '	Golden_1	C	17	N	241	\n	'\
+    '	Golden_11	C	34	N	400	\n	'\
+    '	Golden_1	C	49	N	241	\n	'\
+    '	Golden_11	C	40	N	400	\n	'\
+    '	Golden_11	C	37	N	400	\n	'\
+    '	Golden_6	C	57	N	281	\n	'\
+    '	Golden_15	C	45	N	397	\n	'\
+    '	Golden_10	C	36	N	324	\n	'\
+    '	Golden_11	C	31	N	400	\n	'\
+    '	Golden_19	C	52	N	361	\n	'\
+    '	Golden_20	C	43	N	421	\n	'\
+    '	Golden_11	C	50	N	400	\n	'\
+    '	Golden_12	C	35	N	484	\n	'\
+    '	Golden_10	C	41	N	324	\n	'\
+    '	Golden_15	C	50	N	397	\n	'\
+    '	Golden_3	C	58	N	401	\n	'\
+    '	Golden_15	C	57	N	397	\n	'\
+    '	Golden_10	C	54	N	324	\n	'\
+    '	Golden_20	C	47	N	421	\n	'\
+    '	Golden_2	C	65	N	321	\n	'\
+    '	Golden_10	C	65	N	324	\n	'\
+    '	Golden_12	C	41	N	484	\n	'\
+    '	Golden_8	C	49	N	441	\n	'\
+    '	Golden_10	C	47	N	324	\n	'\
+    '	Golden_8	C	56	N	441	\n	'\
+    '	Golden_8	C	45	N	441	\n	'\
+    '	Golden_12	C	44	N	484	\n	'\
+    '	Golden_16	C	44	N	481	\n	'\
+    '	Golden_11	C	67	N	400	\n	'\
+    '	Golden_3	C	51	N	401	\n	'\
+    '	Golden_12	C	61	N	484	\n	'\
+    '	Golden_16	C	61	N	481	\n	'\
+    '	Golden_20	C	71	N	421	\n	'\
+    '	Golden_15	C	67	N	397	\n	'\
+    '	Golden_11	C	58	N	400	\n	'\
+    '	Golden_11	C	45	N	400	\n	'\
+    '	Golden_4	C	61	N	481	\n	'\
+    '	Golden_11	C	80	N	400	\n	'\
+    '	Golden_19	C	73	N	361	\n	'\
+    '	Golden_3	C	81	N	401	\n	'\
+    '	Golden_20	C	61	N	421	\n	'\
+    '	Golden_20	C	85	N	421	\n	'\
+    '	Golden_12	C	38	N	484	\n	'\
+    '	Golden_15	C	80	N	397	\n	'\
+    '	Golden_4	C	81	N	481	\n	'\
+    '	Golden_8	C	89	N	441	\n	'\
+    '	Golden_12	C	54	N	484	\n	'\
+    '	Golden_12	C	81	N	484	\n	'\
+    '	Golden_8	C	74	N	441	\n	'\
+    '	Golden_12	C	49	N	484	\n	'\
+    '	Golden_12	C	97	N	484	\n	'\
+    '	Golden_4	C	97	N	481	\n	'\
+    '	Golden_12	C	70	N	484	\n	'\
+    '	Golden_16	C	69	N	481	\n	'\
+    '	Golden_16	C	97	N	481	\n	'\
+    '	Golden_16	C	81	N	481	\n	'\
+    '	Golden_8	C	63	N	441	\n	'\
+    '	Golden_2	C	33	N	321	\n	'
+    file_names = file_names.split("\n")
+    file_names = ["data/Clu/Golden/" +line.replace("\t","",2).replace("\t","-",1).replace("\t","",1).replace("\t","-",1).replace("\t","")
+                  + ".gvrp" for line in file_names]
+    '''
     for file in file_names: #["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #
         real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-")
 
@@ -131,6 +194,10 @@ if __name__ == "__main__":
 
         write.pickle_dump(results, "./lowerbound/LBs")
 
+    # import pickle
+    #with open("./lowerbound/LBs", "rb") as ffile:
+    #    results = pickle.load(ffile)
     df1 = pd.DataFrame(results,
                        columns=["Name", "N", "M", "K", 'LowerBound', 'Time'])
     df1.to_csv("./lowerbound/Results_LB.csv")
+
