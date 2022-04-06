@@ -1,4 +1,4 @@
-# Capacited Vehicle Routing Problem (CVRP) Simple, Fast and flexible solver
+# Clustered Vehicle Routing Problem (CluVRP) Simple, Fast and flexible solver
 
 The solver has three simple steps
 -  Aggregation of customers based on given subgroups (zones, clusters, or micro postcodes) and creating the reduced graph.
