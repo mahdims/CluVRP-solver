@@ -1,10 +1,9 @@
-import sys
 import os
 import sys
 import time
 import getopt
-import glob
-import math
+from os import listdir
+from os.path import isfile, join
 import pandas as pd
 sys.path.append("/home/mahdi/Google Drive/PostDoc/Scale vehicle routing/Code - git/VRP-aggregation")
 
@@ -83,6 +82,7 @@ def run_aggregation_disaggregation(arg, filename):
     # path_2_dis_mat = Write_AggDis_mat(Data, path_2_instance, clu_dis)
     # write the aggregated input file for VRP solver
     # path_2_instance = Write_AggInstance(path_2_instance, Data)
+    Plots.Draw_on_a_plane(Data, [], 0, 0)
 
     # Run the VRP solver
     # objVal, Master_route = VRP_Model_SC(Data, clu_dis)
@@ -107,23 +107,28 @@ def run_aggregation_disaggregation(arg, filename):
     # Plots.Draw_on_a_plane(Data, Real_tours, Total_Cost, Run_time)
     # save the CUSTOMERS SEQUENCE
     # save_the_customers_sequence(CWD,file_name, Real_tours,Total_Cost,Run_time )
+    
     return len(Master_route), Total_Cost, Run_time
+    #return
 
 
 if __name__ == "__main__":
     # run_aggregation_disaggregation(sys.argv[1:])
-    file_names = glob.glob("data/Clu/Golden/*.gvrp")
+    # file_names = glob.glob("data/Clu/Golden/*.gvrp")
     results = []
-    number_runs = 8
-    for file in file_names: # ["data/Clu/Li/640.vrp-C129-R5.gvrp"]: #
+    number_runs = 1
+    data_dir = "./GVRP"
+    onlyfiles = [f for f in listdir(data_dir) if isfile(join(data_dir, f))]
+    # instance_name = "P-n22-k2-C11-V2.gvrp"
+    for instance_name in onlyfiles:
+    # for file in ["data/Clu/Golden/Golden_10-C30-N324.gvrp"]: # file_names:
         # M = int(file.split("k")[1].split(".vrp")[0])
-        real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-") # Goldden
+        # real_name = file.split(".")[0].split("/")[-1].replace("C", "").replace("N", "").split("-") # Goldden
         # real_name = file.split("/")[-1].replace(".vrp", "").split("-")[:-1] # Li
         # Only run the ones that have 15 customers in a clusters . This is to test the K-nearest
-        if math.ceil(int(real_name[2]) / int(real_name[1])) != 15:
-            continue
-
-        for trans_percentage in [0.7, 0.5, 0.3, 0.1]:
+        # if math.ceil(int(real_name[2]) / int(real_name[1])) != 15:
+        #    continue
+        for trans_percentage in [1]:
             BestObj = 1000000000
             Total_time = 0
             Total_obj = 0
@@ -137,11 +142,9 @@ if __name__ == "__main__":
 
             results.append(real_name + [Vehicle, str(trans_percentage)] +
                            [str(BestObj), round(Total_obj/number_runs, 4), round(Total_time/number_runs, 4)])
+            # write.pickle_dump(results, "./lowerbound/projection_knearest")
 
-            write.pickle_dump(results, "./lowerbound/projection_knearest")
-
-    df1 = pd.DataFrame(results,
-                           columns=["Name", "N", "M", "K", 'k-nearest', 'Best.Obj', "Avg.Obj", 'Avg.Time'])
-    df1.to_csv("data/Results_AS1_K-nearest.csv")
+    df1 = pd.DataFrame(results, columns=["Name", "N", "M", "K", 'k-nearest', 'Best.Obj', "Avg.Obj", 'Avg.Time'])
+    df1.to_csv("data/GVRP.csv")
 
 
